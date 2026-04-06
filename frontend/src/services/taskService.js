@@ -37,3 +37,16 @@ export const acceptTask = async (taskId) => {
     return err.response?.data || { message: "Failed to accept task" };
   }
 };
+
+// ✅ User gets their own tasks
+export const getUserTasks = async () => {
+  try {
+    const res = await api.get("/tasks/user", {
+      withCredentials: true,
+    });
+    return res.data;
+  } catch (err) {
+    console.error("Get User Tasks Error:", err);
+    throw err;
+  }
+};

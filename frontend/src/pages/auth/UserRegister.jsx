@@ -13,6 +13,8 @@ const UserRegister = () => {
     email: "",
     mobile: "",
     password: "",
+    confirmPassword: "",
+    city: "",
     fatherName: "",
     fatherMobile: "",
     motherName: "",
@@ -25,11 +27,13 @@ const UserRegister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
     const res = await registerUser(formData);
-
     if (res?.message === "User registered successfully") {
-     setShowPopup(true);
+      setShowPopup(true);
     } else if (res?.message) {
       alert(res.message);
     } else {
@@ -37,164 +41,113 @@ const UserRegister = () => {
     }
   };
 
-  const inputStyle =
-    "w-full p-3 mt-1 rounded-lg bg-gray-50 text-sm " +
-    "border border-gray-300 " +
-    "focus:outline-none focus:border-[#6A2AFF] " +
-    "hover:border-[#8755F9] transition-all duration-200";
+  const inputCls =
+    "w-full p-3 rounded-xl bg-gray-50 text-sm border border-gray-200 outline-none " +
+    "focus:border-[#6A2AFF] focus:ring-2 focus:ring-[#6A2AFF]/10 " +
+    "hover:border-[#8755F9] transition-all duration-200 text-gray-800 placeholder-gray-400";
 
-  return  (
+  const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
+
+  return (
     <>
-{showPopup && (
-  <SuccessPopup
-  onClose={() => {
-    setShowPopup(false);
-    navigate("/dashboard");
-  }}
-/>
+      {showPopup && (
+        <SuccessPopup
+          onClose={() => {
+            setShowPopup(false);
+            navigate("/dashboard");
+          }}
+        />
+      )}
 
-)}
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-6">
-      <div className="w-full max-w-6xl flex bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="min-h-screen bg-[#f7f8fc] flex items-center justify-center px-4">
+        <div className="w-full max-w-5xl bg-white rounded-3xl shadow-[0_20px_60px_rgba(106,42,255,0.10)] overflow-hidden flex min-h-[580px]">
 
-        {/* LEFT IMAGE */}
-        <div className="w-1/2 hidden md:flex flex-col items-center justify-center bg-gray-50 p-6">
-          <img
-            src={buddyImage}
-            alt="Buddy"
-            className="max-h-[60vh] rounded-xl object-contain"
-          />
-          <p className="mt-4 text-sm text-gray-500 text-center">
-            A trusted buddy to take care of your parents when you can’t.
-          </p>
-        </div>
+          {/* LEFT — Image */}
+          <div className="hidden md:flex w-1/2 flex-col items-center justify-center bg-gradient-to-br from-[#D116A8]/5 to-[#6A2AFF]/5 p-10 gap-5">
+            <img
+              src={buddyImage}
+              alt="Buddy"
+              className="max-h-[52vh] object-contain hover:scale-105 transition-transform duration-300"
+            />
+            <div className="text-center">
+              <p className="text-base font-semibold text-gray-700">Care from anywhere.</p>
+              <p className="text-sm text-gray-400 mt-1">A trusted buddy for your parents when you can't be there.</p>
+            </div>
+          </div>
 
-        {/* RIGHT FORM */}
-        <div className="w-full md:w-1/2 p-8">
-          <h2 className="text-2xl font-semibold text-black mb-6">
-            Create Account
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-700">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="fullName"
-                  onChange={handleChange}
-                  className={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-700">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  onChange={handleChange}
-                  className={inputStyle}
-                />
-              </div>
+          {/* RIGHT — Form */}
+          <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center">
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-[#6A2AFF] uppercase tracking-widest mb-1">My Buddy</p>
+              <h2 className="text-2xl font-bold text-gray-900">Create your account</h2>
+              <p className="text-sm text-gray-400 mt-1">Join thousands of families using My Buddy</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-700">
-                  Mobile <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="mobile"
-                  onChange={handleChange}
-                  className={inputStyle}
-                  />
+            <form onSubmit={handleSubmit} className="space-y-3">
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Full Name <span className="text-red-400">*</span></label>
+                  <input name="fullName" onChange={handleChange} placeholder="Rahul Sharma" className={inputCls} required />
+                </div>
+                <div>
+                  <label className={labelCls}>Email <span className="text-red-400">*</span></label>
+                  <input type="email" name="email" onChange={handleChange} placeholder="rahul@email.com" className={inputCls} required />
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm text-gray-700">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  onChange={handleChange}
-                  className={inputStyle}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-700">
-                  Father Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="fatherName"
-                  onChange={handleChange}
-                  className={inputStyle}
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Mobile <span className="text-red-400">*</span></label>
+                  <input name="mobile" onChange={handleChange} placeholder="9876543210" maxLength={10} className={inputCls} required />
+                </div>
+                <div>
+                  <label className={labelCls}>Your City <span className="text-red-400">*</span></label>
+                  <input name="city" onChange={handleChange} placeholder="Mumbai, Delhi..." className={inputCls} required />
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm text-gray-700">
-                  Father Mobile
-                </label>
-                <input
-                  name="fatherMobile"
-                  onChange={handleChange}
-                  className={inputStyle}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-700">
-                  Mother Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="motherName"
-                  onChange={handleChange}
-                  className={inputStyle}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Password <span className="text-red-400">*</span></label>
+                  <input type="password" name="password" onChange={handleChange} placeholder="Min. 8 characters" className={inputCls} required />
+                </div>
+                <div>
+                  <label className={labelCls}>Confirm Password <span className="text-red-400">*</span></label>
+                  <input type="password" name="confirmPassword" onChange={handleChange} placeholder="Re-enter password" className={inputCls} required />
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm text-gray-700">
-                  Mother Mobile
+              <div className="flex items-start gap-2 pt-1">
+                <input type="checkbox" id="terms" required className="mt-0.5 accent-[#6A2AFF] w-4 h-4 cursor-pointer" />
+                <label htmlFor="terms" className="text-xs text-gray-500 cursor-pointer">
+                  I agree to the{" "}
+                  <span className="text-[#6A2AFF] hover:underline">Terms & Conditions</span>{" "}
+                  and{" "}
+                  <span className="text-[#6A2AFF] hover:underline">Privacy Policy</span>
                 </label>
-                <input
-                  name="motherMobile"
-                  onChange={handleChange}
-                  className={inputStyle}
-                  />
               </div>
-            </div>
 
-            <button
-              type="submit"
-              className="
-                w-full mt-6 py-3 rounded-lg text-white font-semibold
-                bg-[#6A2AFF]
-                hover:bg-[#8755F9]
-                hover:shadow-lg
-                hover:scale-[1.02]
-                transition-all duration-200
-                cursor-pointer
-                "
-            >
-              Register
-            </button>
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl text-white font-semibold text-sm hover:scale-[1.02] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
+                style={{ background: "linear-gradient(90deg, #6A2AFF, #D116A8)" }}
+              >
+                Create Account
+              </button>
 
-          </form>
+              <p className="text-center text-sm text-gray-500 pt-1">
+                Already have an account?{" "}
+                <a href="/login" className="text-[#6A2AFF] font-semibold hover:underline">
+                  Login
+                </a>
+              </p>
+
+            </form>
+          </div>
         </div>
       </div>
-    </div>
-                </>
+    </>
   );
 };
 

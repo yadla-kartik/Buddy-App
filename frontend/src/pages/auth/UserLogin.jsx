@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { loginUser } from "../../services/authService";
 import buddyImage from "../../assets/buddyLogin.png";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const UserLogin = () => {
-  const navigate = useNavigate(); 
-
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     emailOrMobile: "",
     password: "",
@@ -17,89 +16,92 @@ const UserLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const res = await loginUser(formData);
-
     if (res?.message === "Login successful") {
-      navigate("/dashboard"); // ✅ redirect
+      navigate("/dashboard");
     } else {
       alert("Invalid login");
     }
   };
 
+  const inputCls =
+    "w-full p-3 rounded-xl bg-gray-50 text-sm border border-gray-200 outline-none " +
+    "focus:border-[#6A2AFF] focus:ring-2 focus:ring-[#6A2AFF]/10 " +
+    "hover:border-[#8755F9] transition-all duration-200 text-gray-800 placeholder-gray-400";
+
+  const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-6 font-primary">
-      <div className="w-full max-w-5xl flex bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div className="min-h-screen bg-[#f7f8fc] flex items-center justify-center px-4">
+      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-[0_20px_60px_rgba(106,42,255,0.10)] overflow-hidden flex min-h-[520px]">
 
-        {/* LEFT IMAGE */}
-        <div className="w-1/2 hidden md:flex flex-col items-center justify-center bg-gray-50 p-6">
-          <img
-            src={buddyImage}
-            alt="Buddy"
-            className="max-h-[60vh] object-contain transition-transform duration-300 hover:scale-105"
-          />
-          <p className="mt-4 text-sm text-gray-500">
-            Your trusted buddy, always there.
-          </p>
-        </div>
+        {/* LEFT — Form */}
+        <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
+          <div className="mb-8">
+            <p className="text-xs font-semibold text-[#6A2AFF] uppercase tracking-widest mb-1">My Buddy</p>
+            <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
+            <p className="text-sm text-gray-400 mt-1">Login to manage your parents' care</p>
+          </div>
 
-        {/* RIGHT FORM */}
-        <div className="w-full md:w-1/2 flex items-center justify-center p-8">
-          <form
-            onSubmit={handleSubmit}
-            className="w-full max-w-md bg-white rounded-xl p-8"
-          >
-            <div className="text-center mb-6">
-              <p className="text-2xl text-black font-medium">
-                Welcome to My Buddy
-              </p>
-              <h2 className="text-xl font-semibold mt-1 text-[#6A2AFF]">
-                Login
-              </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className={labelCls}>Email or Mobile <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                name="emailOrMobile"
+                onChange={handleChange}
+                placeholder="rahul@email.com or 9876543210"
+                className={inputCls}
+                required
+              />
             </div>
 
-            <input
-              type="text"
-              name="emailOrMobile"
-              placeholder="Email or Mobile Number"
-              onChange={handleChange}
-              className="w-full mb-4 p-3 rounded-lg bg-gray-50
-                border border-transparent focus:border-[#6A2AFF]
-                hover:border-[#6a2aff6c] transition"
-            />
+            <div>
+              <label className={labelCls}>Password <span className="text-red-400">*</span></label>
+              <input
+                type="password"
+                name="password"
+                onChange={handleChange}
+                placeholder="Enter your password"
+                className={inputCls}
+                required
+              />
+            </div>
 
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              onChange={handleChange}
-              className="w-full mb-2 p-3 rounded-lg bg-gray-50
-                border border-transparent focus:border-[#6A2AFF]
-                hover:border-[#6a2aff6c] transition"
-            />
-
-            <div className="text-right mb-5 text-sm text-[#D116A8] cursor-pointer hover:underline">
-              Forgot Password?
+            <div className="text-right">
+              <span className="text-xs text-[#D116A8] cursor-pointer hover:underline font-medium">
+                Forgot Password?
+              </span>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 rounded-lg text-white font-semibold
-                hover:scale-[1.03] active:scale-95 transition"
-              style={{
-                background: "linear-gradient(90deg, #6A2AFF, #D116A8)",
-              }}
+              className="w-full py-3 rounded-xl text-white font-semibold text-sm hover:scale-[1.02] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
+              style={{ background: "linear-gradient(90deg, #6A2AFF, #D116A8)" }}
             >
               Login
             </button>
 
-            <p className="mt-5 text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-gray-500 pt-1">
               New user?{" "}
-              <Link to="/register" className="text-[#6A2AFF] hover:underline">
-                Register
-              </Link>
+              <a href="/register" className="text-[#6A2AFF] font-semibold hover:underline">
+                Create Account
+              </a>
             </p>
           </form>
+        </div>
+
+        {/* RIGHT — Image */}
+        <div className="hidden md:flex w-1/2 flex-col items-center justify-center bg-gradient-to-br from-[#6A2AFF]/5 to-[#D116A8]/5 p-10 gap-5">
+          <img
+            src={buddyImage}
+            alt="Buddy"
+            className="max-h-[52vh] object-contain hover:scale-105 transition-transform duration-300"
+          />
+          <div className="text-center">
+            <p className="text-base font-semibold text-gray-700">Your trusted buddy, always there.</p>
+            <p className="text-sm text-gray-400 mt-1">Supporting families across every distance.</p>
+          </div>
         </div>
 
       </div>

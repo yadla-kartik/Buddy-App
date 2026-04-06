@@ -10,12 +10,15 @@ import BuddyRegister from "./pages/buddy/BuddyRegister";
 import BuddyDashboard from "./pages/buddy/BuddyDashboard";
 
 import CreateNewTask from "./pages/user/CreateNewTask";
+import Tasks from "./pages/user/Tasks";
+import Payment from "./pages/Payment";
+import Profile from "./pages/user/Userprofile";
 
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminRegister from "./pages/admin/AdminRegister";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 
-import Payment from "./pages/Payment";
+import Layout from "./components/Layout";
 
 function App() {
   return (
@@ -24,20 +27,23 @@ function App() {
 
         <Route path="/" element={<RootRedirect />} />
 
-        {/* USER */}
+        {/* USER — Layout ke andar (Navbar + Menu constant) */}
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/tasks" element={<Tasks />} />
+          <Route path="/payment" element={<Payment />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+
+        {/* FULL SCREEN — Layout ke bahar */}
         <Route path="/login" element={<UserLogin />} />
         <Route path="/register" element={<UserRegister />} />
-        <Route path="/dashboard" element={<UserDashboard />} />
+        <Route path="/create-task" element={<CreateNewTask />} />
 
         {/* BUDDY */}
         <Route path="/buddy/login" element={<BuddyLogin />} />
         <Route path="/buddy/register" element={<BuddyRegister />} />
         <Route path="/buddy/dashboard" element={<BuddyDashboard />} />
-
-        {/* CREATE NEW TASK */}
-        <Route path="/create-task" element={<CreateNewTask />} />
-        <Route path="/payment" element={<Payment />} />
-
 
         {/* ADMIN */}
         <Route path="/admin/login" element={<AdminLogin />} />

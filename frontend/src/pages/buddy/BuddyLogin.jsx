@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { buddyLogin } from "../../services/buddyAuthService";
-import buddyImage from "../../assets/buddyPartner.png";
+import buddyImage from "../../assets/buddyParent.png";
 
 const BuddyLogin = () => {
   const navigate = useNavigate();
 
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -24,97 +27,115 @@ const BuddyLogin = () => {
 
     try {
       const result = await buddyLogin(formData);
-      
+
       if (result.message === "Login successful" && result.buddy) {
-        console.log("✅ Login Success:", result.buddy);
-        
-        // Store buddy data in localStorage
         localStorage.setItem("buddyData", JSON.stringify(result.buddy));
-        
-        // Navigate to dashboard
         navigate("/buddy/dashboard");
       } else {
         setError(result.message || "Login failed");
       }
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Something went wrong. Please try again.");
+      setError("Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-6 font-primary">
-      <div className="w-full max-w-5xl flex bg-white rounded-2xl shadow-xl overflow-hidden">
+  const inputCls = () =>
+    `w-full px-4 py-3 rounded-xl bg-gray-50 border text-sm text-gray-800 placeholder-gray-400 outline-none transition-all duration-200 border-gray-200 focus:border-[#6A2AFF] focus:ring-2 focus:ring-[#6A2AFF]/10 hover:border-[#8755F9]`;
 
-        {/* LEFT IMAGE */}
-        <div className="w-1/2 hidden md:flex flex-col items-center justify-center bg-gray-50 p-6">
+  const labelCls =
+    "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
+
+  return (
+    <div className="min-h-screen bg-[#f7f8fc] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-[0_20px_60px_rgba(106,42,255,0.10)] overflow-hidden flex">
+
+        {/* LEFT SAME IMAGE */}
+        <div className="hidden md:flex w-2/5 flex-col items-center justify-center bg-gradient-to-br from-[#D116A8]/5 to-[#6A2AFF]/5 p-10 gap-5">
           <img
             src={buddyImage}
             alt="Buddy"
-            className="max-h-[60vh] object-contain transition-transform duration-300 hover:scale-105"
+            className="max-h-[55vh] object-contain"
           />
-          <p className="mt-4 text-sm text-gray-500">
-            Your trusted buddy, always there.
-          </p>
+          <div className="text-center">
+            <p className="text-base font-semibold text-gray-700">
+              Welcome Back!
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              Login to continue helping others.
+            </p>
+          </div>
         </div>
 
         {/* RIGHT FORM */}
-        <div className="w-full md:w-1/2 flex items-center justify-center p-8">
-          <form
-            onSubmit={handleSubmit}
-            className="w-full max-w-md bg-white rounded-xl p-8"
-          >
-            <div className="text-center mb-6">
-              <p className="text-2xl text-black font-medium">
-                Welcome to My Buddy
-              </p>
-              <h2 className="text-xl font-semibold mt-1 text-[#6A2AFF]">
-                Login
-              </h2>
-            </div>
+        <div className="w-full md:w-3/5 p-8 md:p-10">
 
-            {/* Error Message */}
+          <div className="mb-6">
+            <p className="text-xs font-semibold text-[#6A2AFF] uppercase tracking-widest mb-1">
+              My Buddy
+            </p>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Buddy Login
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              Enter your credentials
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* ERROR */}
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {error}
-              </div>
+              <div className="text-sm text-red-500">{error}</div>
             )}
 
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="w-full mb-4 p-3 rounded-lg bg-gray-50
-                border border-transparent focus:border-[#6A2AFF]
-                hover:border-[#6a2aff6c] transition"
-            />
+            {/* EMAIL */}
+            <div>
+              <label className={labelCls}>Email *</label>
+              <input
+                type="email"
+                name="email"
+                placeholder="you@email.com"
+                value={formData.email}
+                onChange={handleChange}
+                className={inputCls()}
+                required
+              />
+            </div>
 
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full mb-2 p-3 rounded-lg bg-gray-50
-                border border-transparent focus:border-[#6A2AFF]
-                hover:border-[#6a2aff6c] transition"
-            />
+            {/* PASSWORD */}
+            <div>
+              <label className={labelCls}>Password *</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={inputCls()}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-400"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
 
-            <div className="text-right mb-5 text-sm text-[#D116A8] cursor-pointer hover:underline">
+            {/* FORGOT */}
+            <div className="text-right text-sm text-[#D116A8] cursor-pointer hover:underline">
               Forgot Password?
             </div>
 
+            {/* BUTTON */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-lg text-white font-semibold
-                hover:scale-[1.03] active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-xl text-white font-semibold transition"
               style={{
                 background: "linear-gradient(90deg, #6A2AFF, #D116A8)",
               }}
@@ -122,15 +143,19 @@ const BuddyLogin = () => {
               {loading ? "Logging in..." : "Login"}
             </button>
 
-            <p className="mt-5 text-center text-sm text-gray-600">
-              New user?{" "}
-              <Link to="/buddy/register" className="text-[#6A2AFF] hover:underline">
+            {/* REGISTER LINK */}
+            <p className="text-center text-sm text-gray-500">
+              New Buddy?{" "}
+              <Link
+                to="/buddy/register"
+                className="text-[#6A2AFF] font-semibold hover:underline"
+              >
                 Register
               </Link>
             </p>
+
           </form>
         </div>
-
       </div>
     </div>
   );

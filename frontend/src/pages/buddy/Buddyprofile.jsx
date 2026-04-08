@@ -1,525 +1,165 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Eye, EyeOff, Upload } from "lucide-react";
-import { registerBuddy } from "../../services/buddyAuthService";
-import SuccessPopup from "../../components/common/SuccessPopup"; 
+import { User, Mail, Phone, MapPin, Calendar, CreditCard, FileText, BadgeCheck, Camera, Edit3, Shield, Briefcase } from "lucide-react";
+import BuddyNav from "./BuddyNav"; 
 
-const BuddyRegister = () => {
-  const navigate = useNavigate();
-
-  const [showPassword, setShowPassword] = useState(false);
-    const [showSuccessPopup, setShowSuccessPopup] = useState(false); // ✅ Add this line
-  const [isSubmitting, setIsSubmitting] = useState(false); 
-
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    mobile: "",
-    password: "",
-    dob: "",
-    permanentAddress: "",
-    panNumber: "",
-    aadhaarNumber: "",
-    bankName: "",
-    accountHolderName: "",
-    accountNumber: "",
-    ifscCode: "",
-  });
-
-  const [files, setFiles] = useState({
-    panImage: null,
-    aadhaarImage: null,
-    profilePhoto: null,
-  });
-
-  const [errors, setErrors] = useState({
-    email: "",
-    mobile: "",
-    panNumber: "",
-    aadhaarNumber: "",
-    dob: "",
-  });
-
-  // TEXT INPUT
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    // Mobile validation (only numbers, max 10 digits)
-    if (name === "mobile") {
-      if (!/^\d*$/.test(value)) {
-        return; // Don't update if not a number
-      }
-      if (value.length > 10) {
-        return; // Don't update if more than 10 digits
-      }
-      setFormData({ ...formData, [name]: value });
-      if (value.length > 0 && value.length < 10) {
-        setErrors({ ...errors, mobile: "Mobile number must be 10 digits" });
-      } else {
-        setErrors({ ...errors, mobile: "" });
-      }
-      return;
-    }
-
-    // PAN validation (max 10 characters, uppercase)
-    if (name === "panNumber") {
-      const upperValue = value.toUpperCase();
-      if (upperValue.length > 10) {
-        return;
-      }
-      setFormData({ ...formData, [name]: upperValue });
-      if (upperValue.length > 0 && upperValue.length < 10) {
-        setErrors({ ...errors, panNumber: "PAN must be 10 characters" });
-      } else {
-        setErrors({ ...errors, panNumber: "" });
-      }
-      return;
-    }
-
-    // Aadhaar validation (only numbers, max 12 digits)
-    if (name === "aadhaarNumber") {
-      if (!/^\d*$/.test(value)) {
-        return;
-      }
-      if (value.length > 12) {
-        return;
-      }
-      setFormData({ ...formData, [name]: value });
-      if (value.length > 0 && value.length < 12) {
-        setErrors({ ...errors, aadhaarNumber: "Aadhaar must be 12 digits" });
-      } else {
-        setErrors({ ...errors, aadhaarNumber: "" });
-      }
-      return;
-    }
-
-    // Account Number validation (only numbers)
-    if (name === "accountNumber") {
-      if (!/^\d*$/.test(value)) {
-        return;
-      }
-    }
-
-    setFormData({ ...formData, [name]: value });
-
-    // Email validation
-    if (name === "email") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (value && !emailRegex.test(value)) {
-        setErrors({ ...errors, email: "Please enter a valid email address" });
-      } else {
-        setErrors({ ...errors, email: "" });
-      }
-    }
-
-    // DOB validation (18+ years)
-    if (name === "dob") {
-      const today = new Date();
-      const birthDate = new Date(value);
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      
-      if (age < 18) {
-        setErrors({ ...errors, dob: "You must be at least 18 years old" });
-      } else {
-        setErrors({ ...errors, dob: "" });
-      }
-    }
+export default function BuddyProfile() {
+  // Mock data for the profile (in a real app, this would come from an API/localStorage)
+  const buddy = {
+    name: "Rahul Sharma",
+    email: "rahul@example.com",
+    mobile: "+91 9876543210",
+    city: "Mumbai",
+    dob: "12 May 1995",
+    address: "102, Sunrise Apartments, Andheri West, Mumbai, Maharashtra 400053",
+    panNumber: "ABCDE1234F",
+    aadhaarNumber: "XXXX-XXXX-1234",
+    bankName: "HDFC Bank",
+    accountHolder: "Rahul Sharma",
+    accountNumber: "XXXXXXXXX1234",
+    ifsc: "HDFC0001234",
+    status: "welcome", // Verified
+    joinDate: "Jan 2025"
   };
-
-  // FILE INPUT
-  const handleFileChange = (e) => {
-    setFiles({ ...files, [e.target.name]: e.target.files[0] });
-  };
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  // Final validations
-  if (formData.mobile.length !== 10) {
-    setErrors({ ...errors, mobile: "Mobile number must be exactly 10 digits" });
-    return;
-  }
-
-  if (formData.panNumber.length !== 10) {
-    setErrors({ ...errors, panNumber: "PAN must be exactly 10 characters" });
-    return;
-  }
-
-  if (formData.aadhaarNumber.length !== 12) {
-    setErrors({ ...errors, aadhaarNumber: "Aadhaar must be exactly 12 digits" });
-    return;
-  }
-
-  if (errors.email || errors.mobile || errors.panNumber || errors.aadhaarNumber || errors.dob) {
-    alert("Please fix all errors before submitting");
-    return;
-  }
-
-  setIsSubmitting(true); // ✅ Start loading
-
-  const data = new FormData();
-  Object.keys(formData).forEach((key) => {
-    data.append(key, formData[key]);
-  });
-
-  data.append("panImage", files.panImage);
-  data.append("aadhaarImage", files.aadhaarImage);
-  data.append("profilePhoto", files.profilePhoto);
-
-  const res = await registerBuddy(data);
-
-  setIsSubmitting(false); // ✅ Stop loading
-
-  if (res?.message === "Buddy registered successfully") {
-    setShowSuccessPopup(true); // ✅ Show popup
-    
-    // ✅ Auto redirect after 2.5s (popup will handle it)
-    setTimeout(() => {
-      navigate("/buddy/dashboard");
-    }, 2500);
-  } else {
-    alert(res?.message || "Registration failed");
-  }
-};
-
-  const input =
-    "w-full p-3 rounded-lg bg-gray-50 border border-gray-300 " +
-    "focus:outline-none focus:border-[#6A2AFF] transition";
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-purple-50 to-pink-50 py-12 px-6">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-[#f7f8fc] font-[Poppins,sans-serif] flex flex-col">
+      {/* ── Top Navbar ── */}
+      <BuddyNav buddy={buddy} status={buddy.status} unreadCount={2} />
+
+      {/* ── Main Content ── */}
+      <main className="flex-1 max-w-6xl w-full mx-auto p-8 flex flex-col gap-6">
         
-        {/* HEADER */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-[#6A2AFF] mb-3">My Buddy</h1>
-          <p className="text-lg text-gray-600 italic mb-4">
-            "Join us in making a difference, one care at a time"
-          </p>
-          <h2 className="text-2xl font-semibold text-gray-800">
-            Register as a Buddy Partner
-          </h2>
+        {/* Header Section */}
+        <div className="flex items-center justify-between mb-2 mt-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage your personal information and account settings.</p>
+          </div>
+          <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:border-[#6A2AFF] hover:text-[#6A2AFF] transition-all shadow-sm">
+            <Edit3 size={16} /> Edit Profile
+          </button>
         </div>
 
-        {/* FORM CARD */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-
-            {/* BASIC INFORMATION */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">
-                Basic Information
-              </h3>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  name="name" 
-                  onChange={handleChange}
-                  value={formData.name}
-                  className={input} 
-                  required 
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="email" 
-                  name="email" 
-                  onChange={handleChange}
-                  value={formData.email}
-                  className={input} 
-                  required 
-                />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mobile Number <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="tel" 
-                  name="mobile" 
-                  placeholder="10-digit mobile number"
-                  value={formData.mobile}
-                  onChange={handleChange} 
-                  className={input} 
-                  required 
-                />
-                {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    onChange={handleChange}
-                    value={formData.password}
-                    className={input}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-3 text-gray-500"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-12">
+          
+          {/* ── LEFT COLUMN: Avatar & Quick Info ── */}
+          <div className="lg:col-span-1 flex flex-col gap-6">
+            
+            {/* User Info Card */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center text-center relative overflow-hidden">
+              {/* Background gradient banner inside card */}
+              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-[#6A2AFF] to-[#D116A8] opacity-[0.08]"></div>
+              
+              {/* Avatar */}
+              <div className="relative mt-4 mb-4">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#6A2AFF] to-[#D116A8] flex items-center justify-center text-white text-3xl font-bold shadow-lg border-4 border-white">
+                  {buddy.name.charAt(0)}
                 </div>
+                <button className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-600 hover:text-[#6A2AFF] shadow-sm transition">
+                  <Camera size={14} />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date of Birth <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="date" 
-                  name="dob" 
-                  onChange={handleChange}
-                  value={formData.dob}
-                  className={input} 
-                  required 
-                />
-                {errors.dob && <p className="text-red-500 text-xs mt-1">{errors.dob}</p>}
+              <h2 className="text-xl font-bold text-gray-900">{buddy.name}</h2>
+              <p className="text-sm text-gray-500 mb-3">{buddy.email}</p>
+
+              {/* Status Badge */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-xs font-semibold mb-6">
+                <BadgeCheck size={14} /> Verified Buddy
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Permanent Address <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  name="permanentAddress"
-                  onChange={handleChange}
-                  value={formData.permanentAddress}
-                  className={input}
-                  rows="3"
-                  required
-                />
+              <div className="w-full pt-6 border-t border-gray-100 flex flex-col gap-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 flex items-center gap-2"><Briefcase size={16} /> Joined</span>
+                  <span className="font-semibold text-gray-800">{buddy.joinDate}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 flex items-center gap-2"><MapPin size={16} /> Location</span>
+                  <span className="font-semibold text-gray-800">{buddy.city}</span>
+                </div>
               </div>
             </div>
-
-            {/* DOCUMENT DETAILS */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">
-                Document Details
-              </h3>
-
+            
+            {/* Secure Data Notice */}
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-5 flex items-start gap-3">
+              <Shield size={20} className="text-[#6A2AFF] mt-0.5 shrink-0" />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  PAN Number <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  name="panNumber" 
-                  placeholder="10-character PAN"
-                  value={formData.panNumber}
-                  onChange={handleChange} 
-                  className={input} 
-                  required 
-                />
-                {errors.panNumber && <p className="text-red-500 text-xs mt-1">{errors.panNumber}</p>}
+                <h4 className="text-sm font-semibold text-gray-900 mb-1">Your data is secure</h4>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Your documents and bank details are encrypted and securely stored. We never share your personal data with third parties.
+                </p>
               </div>
+            </div>
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload PAN Card <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input 
-                    type="file" 
-                    name="panImage" 
-                    onChange={handleFileChange} 
-                    className="hidden" 
-                    id="panImage"
-                    accept="image/*"
-                    required 
-                  />
-                  <label 
-                    htmlFor="panImage"
-                    className="flex items-center justify-center gap-2 w-full p-3 rounded-lg bg-gray-50 border border-gray-300 cursor-pointer hover:bg-gray-100 transition"
-                  >
-                    <Upload size={18} className="text-gray-600" />
-                    <span className="text-sm text-gray-600">
-                      {files.panImage ? files.panImage.name : "Choose PAN Card Image"}
-                    </span>
-                  </label>
-                </div>
+          {/* ── RIGHT COLUMN: Detailed Info ── */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            
+            {/* Personal Details */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
+                <User size={18} className="text-[#6A2AFF]" />
+                <h3 className="text-base font-bold text-gray-900">Personal Details</h3>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Aadhaar Number <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  name="aadhaarNumber" 
-                  placeholder="12-digit Aadhaar"
-                  value={formData.aadhaarNumber}
-                  onChange={handleChange} 
-                  className={input} 
-                  required 
-                />
-                {errors.aadhaarNumber && <p className="text-red-500 text-xs mt-1">{errors.aadhaarNumber}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload Aadhaar Card <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input 
-                    type="file" 
-                    name="aadhaarImage" 
-                    onChange={handleFileChange} 
-                    className="hidden" 
-                    id="aadhaarImage"
-                    accept="image/*"
-                    required 
-                  />
-                  <label 
-                    htmlFor="aadhaarImage"
-                    className="flex items-center justify-center gap-2 w-full p-3 rounded-lg bg-gray-50 border border-gray-300 cursor-pointer hover:bg-gray-100 transition"
-                  >
-                    <Upload size={18} className="text-gray-600" />
-                    <span className="text-sm text-gray-600">
-                      {files.aadhaarImage ? files.aadhaarImage.name : "Choose Aadhaar Card Image"}
-                    </span>
-                  </label>
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                <InfoItem icon={<User size={16} />} label="Full Name" value={buddy.name} />
+                <InfoItem icon={<Phone size={16} />} label="Mobile Number" value={buddy.mobile} />
+                <InfoItem icon={<Mail size={16} />} label="Email Address" value={buddy.email} />
+                <InfoItem icon={<Calendar size={16} />} label="Date of Birth" value={buddy.dob} />
+                <div className="sm:col-span-2">
+                  <InfoItem icon={<MapPin size={16} />} label="Permanent Address" value={buddy.address} />
                 </div>
               </div>
             </div>
 
-            {/* BANK DETAILS */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">
-                Bank Account Details
-              </h3>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bank Name <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  name="bankName" 
-                  onChange={handleChange}
-                  value={formData.bankName}
-                  className={input} 
-                  required 
-                />
+            {/* Documents */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+                <div className="flex items-center gap-2">
+                  <FileText size={18} className="text-[#D116A8]" />
+                  <h3 className="text-base font-bold text-gray-900">Documents Setup</h3>
+                </div>
+                <span className="text-xs font-semibold bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full border border-emerald-200">Verified</span>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Account Holder Name <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  name="accountHolderName" 
-                  onChange={handleChange}
-                  value={formData.accountHolderName}
-                  className={input} 
-                  required 
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Account Number <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  name="accountNumber"
-                  onChange={handleChange}
-                  value={formData.accountNumber}
-                  className={input} 
-                  required 
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  IFSC Code <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  name="ifscCode" 
-                  placeholder="e.g., SBIN0001234"
-                  onChange={handleChange}
-                  value={formData.ifscCode}
-                  className={input} 
-                  required 
-                />
-              </div>
-            </div>
-
-            {/* PROFILE PHOTO */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">
-                Profile Photo
-              </h3>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload Live / Recent Photo <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input 
-                    type="file" 
-                    name="profilePhoto" 
-                    onChange={handleFileChange} 
-                    className="hidden" 
-                    id="profilePhoto"
-                    accept="image/*"
-                    required 
-                  />
-                  <label 
-                    htmlFor="profilePhoto"
-                    className="flex items-center justify-center gap-2 w-full p-3 rounded-lg bg-gray-50 border border-gray-300 cursor-pointer hover:bg-gray-100 transition"
-                  >
-                    <Upload size={18} className="text-gray-600" />
-                    <span className="text-sm text-gray-600">
-                      {files.profilePhoto ? files.profilePhoto.name : "Choose Profile Photo"}
-                    </span>
-                  </label>
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                <InfoItem label="PAN Number" value={buddy.panNumber} />
+                <div className="flex flex-col">
+                  <InfoItem label="Aadhaar Number" value={buddy.aadhaarNumber} />
+                  <span className="text-xs text-gray-400 mt-1">Masked for security (Last 4 digits visible)</span>
                 </div>
               </div>
             </div>
 
-       <button
-  type="submit"
-  disabled={isSubmitting}
-  className="w-full py-3 rounded-lg text-white font-semibold bg-linear-to-r from-[#6A2AFF] to-[#D116A8] cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
->
-  <span className="relative z-10">
-    {isSubmitting ? "Registering..." : "Register as Buddy"}
-  </span>
-  <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></span>
-</button>
+            {/* Bank Details */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
+                <CreditCard size={18} className="text-amber-500" />
+                <h3 className="text-base font-bold text-gray-900">Bank Information</h3>
+              </div>
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                <InfoItem label="Bank Name" value={buddy.bankName} />
+                <InfoItem label="Account Holder Name" value={buddy.accountHolder} />
+                <InfoItem label="Account Number" value={buddy.accountNumber} />
+                <InfoItem label="IFSC Code" value={buddy.ifsc} />
+              </div>
+            </div>
 
-            <p className="text-sm text-center text-gray-600">
-              Already a Buddy?{" "}
-              <Link to="/buddy/login" className="text-[#6A2AFF] font-medium hover:underline transition-all duration-200">
-                Login
-              </Link>
-            </p>
-          </form>
+          </div>
         </div>
-      </div>
-        {showSuccessPopup && (
-      <SuccessPopup onClose={() => setShowSuccessPopup(false)} />
-    )}
+      </main>
     </div>
   );
-};
+}
 
-export default BuddyRegister;
+// ─── Helper Component: Info Item ───
+function InfoItem({ icon, label, value }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+        {icon && <span className="text-gray-400 opacity-80">{icon}</span>}
+        {label}
+      </p>
+      <p className="text-sm font-semibold text-gray-900">{value || "—"}</p>
+    </div>
+  );
+}

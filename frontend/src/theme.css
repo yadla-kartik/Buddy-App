@@ -1,0 +1,540 @@
+/* =====================================================================
+   BUDDY APP — THEME.CSS
+   Single source of truth for all design tokens & reusable component
+   classes. Import this in main.jsx (after index.css).
+   ===================================================================== */
+
+/* ── 1. CSS CUSTOM PROPERTIES (Design Tokens) ───────────────────── */
+:root {
+  /* Brand Colors */
+  --clr-primary:       #6A2AFF;   /* violet  */
+  --clr-secondary:     #D116A8;   /* pink/magenta */
+  --clr-primary-light: #8B3FFF;   /* mid-violet */
+
+  /* Gradient */
+  --gradient-brand: linear-gradient(90deg, #6A2AFF, #D116A8);
+  --gradient-brand-br: linear-gradient(135deg, #6A2AFF, #D116A8);
+  --gradient-brand-subtle: linear-gradient(135deg,
+      rgba(106,42,255,0.08),
+      rgba(209,22,168,0.04));
+
+  /* Backgrounds */
+  --bg-page:    #f7f8fc;   /* light off-white page bg */
+  --bg-surface: #ffffff;   /* card / panel bg */
+  --bg-muted:   #f3f4f6;   /* secondary surface (gray-100) */
+
+  /* Text */
+  --text-heading:   #111827; /* gray-900 */
+  --text-body:      #374151; /* gray-700 */
+  --text-muted:     #9ca3af; /* gray-400 */
+  --text-subtle:    #d1d5db; /* gray-300 */
+  --text-primary:   #6A2AFF;
+  --text-secondary: #D116A8;
+
+  /* Borders */
+  --border-light:   #f3f4f6; /* gray-100 */
+  --border-default: #e5e7eb; /* gray-200 */
+
+  /* Shadows */
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:    0 4px 12px rgba(106,42,255,0.10);
+  --shadow-lg:    0 20px 60px rgba(106,42,255,0.12);
+  --shadow-focus: 0 0 0 3px rgba(106,42,255,0.15);
+
+  /* Radii */
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* Spacing (page-level) */
+  --page-max-w:  1280px;
+  --page-px:     1.5rem;
+
+  /* Transitions */
+  --transition: all 0.2s ease;
+}
+
+/* ── 2. PAGE & LAYOUT ────────────────────────────────────────────── */
+.t-page {
+  min-height: 100vh;
+  background-color: var(--bg-page);
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+}
+
+/* Full-screen centered layout (auth pages, forms) */
+.t-page-centered {
+  min-height: 100vh;
+  background-color: var(--bg-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+}
+
+/* Auth page has a faint gradient fade from top */
+.t-page-auth {
+  background-image: linear-gradient(
+    to bottom,
+    rgba(106,42,255,0.08),
+    rgba(106,42,255,0.02) 20%,
+    transparent 40%
+  );
+}
+
+/* ── 3. CARDS ────────────────────────────────────────────────────── */
+.t-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.t-card-hover {
+  transition: var(--transition);
+}
+.t-card-hover:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Large card (auth panels, register forms) */
+.t-card-lg {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ── 4. HERO / BANNER ────────────────────────────────────────────── */
+.t-banner {
+  position: relative;
+  background: var(--gradient-brand-br);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  padding: 1.5rem;
+  color: #fff;
+}
+
+.t-banner::before {
+  content: '';
+  position: absolute;
+  top: -2.5rem; right: -2.5rem;
+  width: 12rem; height: 12rem;
+  background: rgba(255,255,255,0.10);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.t-banner::after {
+  content: '';
+  position: absolute;
+  bottom: -2rem; left: -2rem;
+  width: 9rem; height: 9rem;
+  background: rgba(255,255,255,0.08);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.t-banner > * { position: relative; z-index: 1; }
+
+/* ── 5. BUTTONS ──────────────────────────────────────────────────── */
+
+/* Primary gradient CTA */
+.t-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--gradient-brand);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
+}
+.t-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(106,42,255,0.25);
+}
+.t-btn:active:not(:disabled) { transform: scale(0.97); }
+.t-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Full-width variant */
+.t-btn-full { width: 100%; }
+
+/* Ghost / outline */
+.t-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.t-btn-ghost:hover { background: var(--bg-muted); border-color: #c4b5fd; color: var(--clr-primary); }
+
+/* Soft/tinted  */
+.t-btn-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(106,42,255,0.2);
+  border-radius: var(--radius-md);
+  background: rgba(106,42,255,0.06);
+  color: var(--clr-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.t-btn-soft:hover { background: rgba(106,42,255,0.12); }
+
+/* Danger */
+.t-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: #fef2f2;
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.t-btn-danger:hover { background: #fee2e2; }
+
+/* ── 6. FORM ELEMENTS ────────────────────────────────────────────── */
+.t-label {
+  display: block;
+  font-size: 0.6875rem;     /* 11px */
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.25rem;
+}
+
+.t-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  background: #f9fafb;
+  border: 1px solid var(--border-default);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--text-heading);
+  outline: none;
+  transition: var(--transition);
+}
+.t-input::placeholder { color: var(--text-muted); }
+.t-input:hover        { border-color: #a78bfa; }
+.t-input:focus        { border-color: var(--clr-primary); box-shadow: var(--shadow-focus); }
+.t-input:disabled     { opacity: 0.6; cursor: not-allowed; }
+
+.t-input-error {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.12) !important;
+}
+
+.t-error {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ef4444;
+  margin-top: 0.25rem;
+}
+
+/* ── 7. BADGES & PILLS ───────────────────────────────────────────── */
+.t-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.t-badge-primary {
+  background: var(--gradient-brand);
+  color: #fff;
+}
+
+.t-badge-soft {
+  background: rgba(106,42,255,0.08);
+  color: var(--clr-primary);
+  border: 1px solid rgba(106,42,255,0.18);
+}
+
+.t-badge-success {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.t-badge-warning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.t-badge-danger {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.t-badge-neutral {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
+}
+
+/* ── 8. AVATAR ───────────────────────────────────────────────────── */
+.t-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-brand-br);
+  color: #fff;
+  font-weight: 700;
+  font-family: inherit;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* ── 9. SECTION HEADING ──────────────────────────────────────────── */
+.t-section-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+/* ── 10. DIVIDER ─────────────────────────────────────────────────── */
+.t-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 1rem 0;
+}
+
+/* ── 11. SPINNER ─────────────────────────────────────────────────── */
+.t-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: t-spin 0.7s linear infinite;
+}
+
+.t-spinner-purple {
+  border-color: rgba(106,42,255,0.2);
+  border-top-color: var(--clr-primary);
+}
+
+@keyframes t-spin { to { transform: rotate(360deg); } }
+
+/* ── 12. KEYFRAMES ───────────────────────────────────────────────── */
+@keyframes t-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@keyframes t-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
+@keyframes t-pulse-ring {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.08); }
+}
+
+.t-animate-fade-in  { animation: t-fade-in  0.3s ease both; }
+.t-animate-scale-in { animation: t-scale-in 0.25s ease both; }
+.t-animate-pulse    { animation: t-pulse-ring 1.8s ease-in-out infinite; }
+
+/* ── 13. NAVBAR ──────────────────────────────────────────────────── */
+.t-navbar {
+  width: 100%;
+  height: 4rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.t-nav-link {
+  position: relative;
+  height: 100%;
+  padding: 0 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  font-family: inherit;
+}
+.t-nav-link:hover   { color: var(--clr-primary); }
+.t-nav-link.active  { color: var(--clr-primary); }
+.t-nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--gradient-brand);
+  border-radius: 2px;
+}
+
+/* ── 14. SIDEBAR ─────────────────────────────────────────────────── */
+.t-sidebar {
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-light);
+}
+
+.t-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4b5563;  /* gray-600 */
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+.t-sidebar-item:hover { background: #f5f3ff; color: var(--clr-primary); }
+.t-sidebar-item.active {
+  background: var(--gradient-brand);
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+.t-sidebar-item.active svg,
+.t-sidebar-item.active span { color: #fff !important; }
+
+/* ── 15. STATS CARD ──────────────────────────────────────────────── */
+.t-stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: 0.75rem 1.25rem;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition);
+  cursor: default;
+}
+.t-stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* ── 16. SEARCH INPUT ────────────────────────────────────────────── */
+.t-search {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
+  border-radius: var(--radius-md);
+  background: rgba(106,42,255,0.05);
+  border: 1px solid rgba(106,42,255,0.20);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--text-heading);
+  outline: none;
+  transition: var(--transition);
+}
+.t-search:focus {
+  border-color: var(--clr-primary);
+  box-shadow: var(--shadow-focus);
+  background: #fff;
+}
+
+/* ── 17. MODAL OVERLAY ───────────────────────────────────────────── */
+.t-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.t-modal {
+  background: var(--bg-surface);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 25px 60px rgba(0,0,0,0.18);
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: t-scale-in 0.25s ease both;
+}
+
+/* ── 18. PROGRESS BAR ────────────────────────────────────────────── */
+.t-progress-track {
+  height: 0.625rem;
+  background: #e5e7eb;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.t-progress-fill {
+  height: 100%;
+  background: var(--gradient-brand);
+  border-radius: var(--radius-full);
+  transition: width 0.6s ease;
+}
+
+/* ── 19. STEP CONNECTOR ──────────────────────────────────────────── */
+.t-step-connector {
+  flex: 1;
+  height: 2px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  margin: 0 0.5rem 1rem;
+}
+.t-step-connector.done { background: var(--gradient-brand); }

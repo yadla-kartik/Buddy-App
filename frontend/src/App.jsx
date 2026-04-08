@@ -6,8 +6,11 @@ import UserDashboard from "./pages/user/UserDashboard";
 import RootRedirect from "./pages/RootRedirect";
 
 import BuddyLogin from "./pages/buddy/BuddyLogin";
+import BuddySignup from "./pages/buddy/BuddySignup";
 import BuddyRegister from "./pages/buddy/BuddyRegister";
 import BuddyDashboard from "./pages/buddy/BuddyDashboard";
+import BuddyProfile from "./pages/buddy/Buddyprofile";
+import MyTasks from "./pages/buddy/MyTasks";
 
 import CreateNewTask from "./pages/user/CreateNewTask";
 import Tasks from "./pages/user/Tasks";
@@ -42,8 +45,11 @@ function App() {
 
         {/* BUDDY */}
         <Route path="/buddy/login" element={<BuddyLogin />} />
+        <Route path="/buddy/signup" element={<BuddySignup />} />
         <Route path="/buddy/register" element={<BuddyRegister />} />
         <Route path="/buddy/dashboard" element={<BuddyDashboard />} />
+        <Route path="/buddy/profile" element={<BuddyProfile />} />
+        <Route path="/buddy/tasks" element={<MyTasks />} />
 
         {/* ADMIN */}
         <Route path="/admin/login" element={<AdminLogin />} />

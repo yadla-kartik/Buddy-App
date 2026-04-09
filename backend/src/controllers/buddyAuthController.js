@@ -1,6 +1,7 @@
 const Buddy = require("../models/Buddy");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const getCookieOptions = require("../utils/cookieOptions");
 
 exports.registerBuddy = async (req, res) => {
   try {
@@ -134,12 +135,7 @@ exports.loginBuddy = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, getCookieOptions());
 
     // ✅ RETURN isVerified STATUS
     return res.status(200).json({

@@ -1,6 +1,7 @@
 const Admin = require("../models/Admin");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
+const getCookieOptions = require("../utils/cookieOptions");
 
 // ✅ REGISTER ADMIN
 exports.adminRegister = async (req, res) => {
@@ -32,12 +33,7 @@ exports.adminRegister = async (req, res) => {
     });
 
     res
-      .cookie("adminToken", token, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
+      .cookie("adminToken", token, getCookieOptions())
       .status(201)
       .json({
         message: "Admin registered successfully",
@@ -74,12 +70,7 @@ exports.adminLogin = async (req, res) => {
     });
 
     res
-      .cookie("adminToken", token, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
+      .cookie("adminToken", token, getCookieOptions())
       .status(200)
       .json({
         message: "Admin login successful",

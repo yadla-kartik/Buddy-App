@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const getCookieOptions = require("../utils/cookieOptions");
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -36,12 +37,7 @@ exports.login = async (req, res) => {
     const token = generateToken(user);
 
     // 🍪 COOKIE SET
-    res.cookie("token", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false, // prod me true
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, getCookieOptions());
 
     return res.status(200).json({
       message: "Login successful",
@@ -76,12 +72,7 @@ exports.register = async (req, res) => {
 const token = generateToken(user);
 
     // 🍪 COOKIE
-    res.cookie("token", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false, // localhost
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, getCookieOptions());
 
 
     res.status(201).json({

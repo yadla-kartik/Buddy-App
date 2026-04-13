@@ -1,16 +1,47 @@
-# React + Vite
+# Buddy Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Local development
 
-Currently, two official plugins are available:
+1. Copy `.env.example` to `.env`
+2. Set `VITE_API_URL`
+3. Run:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+## Frontend deployment
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This frontend is ready to deploy on Vercel as a Vite app.
 
-## Expanding the ESLint configuration
+### Required environment variable
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+VITE_API_URL=https://your-backend-domain.com/api
+```
+
+Example:
+
+```bash
+VITE_API_URL=https://buddy-api.onrender.com/api
+```
+
+### Vercel settings
+
+- Framework Preset: `Vite`
+- Root Directory: `frontend`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+### Important backend requirement
+
+If the frontend is deployed on a different domain than the backend, the backend must allow the frontend domain in `ALLOWED_ORIGINS`.
+
+Example:
+
+```bash
+ALLOWED_ORIGINS=https://buddy-app.vercel.app,http://localhost:5173
+```
+
+Production cookie settings are already configured in the backend for cross-site usage.

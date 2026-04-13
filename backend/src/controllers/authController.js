@@ -44,6 +44,7 @@ exports.login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+
     return res.status(200).json({
       message: "Login successful",
       user: {
@@ -84,12 +85,12 @@ exports.register = async (req, res) => {
 const token = generateToken(user);
 
     // 🍪 COOKIE
+
     res.cookie("userToken", token, {
       httpOnly: true,
       sameSite: "lax",
       secure: false, // localhost
       maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
 
 
     res.status(201).json({

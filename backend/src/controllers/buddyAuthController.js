@@ -1,6 +1,7 @@
 const Buddy = require("../models/Buddy");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const getCookieOptions = require("../utils/cookieOptions");
 
 const signBuddyToken = (buddy) =>
   jwt.sign({ id: buddy._id, role: buddy.role }, process.env.JWT_SECRET, {

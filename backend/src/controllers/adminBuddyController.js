@@ -3,7 +3,7 @@ const Buddy = require("../models/Buddy");
 // ✅ GET ALL (name + email)
 exports.getAllBuddiesForAdmin = async (req, res) => {
   try {
-    const buddies = await Buddy.find()
+    const buddies = await Buddy.find({ verificationRequested: true })
       .select("name email isVerified createdAt")
       .sort({ createdAt: -1 });
 

@@ -2,16 +2,87 @@ const Buddy = require("../models/Buddy");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+const signBuddyToken = (buddy) =>
+  jwt.sign({ id: buddy._id, role: buddy.role }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
+// Signup creates only basic account. No verification request is sent here.
+exports.signupBuddy = async (req, res) => {
+  try {
+    const { name, email, mobile, password } = req.body;
+
+    if (!name || !email || !mobile || !password) {
+      return res
+        .status(400)
+        .json({ message: "Name, email, mobile and password are required" });
+    }
+
+    const exists = await Buddy.findOne({ $or: [{ email }, { mobile }] });
+    if (exists) {
+      const message =
+        exists.email === email
+          ? "Buddy already exists with this email"
+          : "Buddy already exists with this mobile number";
+      return res.status(400).json({ message });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newBuddy = await Buddy.create({
+      name,
+      email,
+      mobile,
+      password: hashedPassword,
+      registrationCompleted: false,
+      verificationRequested: false,
+      isVerified: false,
+    });
+
+    const token = signBuddyToken(newBuddy);
+    res.cookie("buddyToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(201).json({
+      message: "Buddy signup successful",
+      buddy: {
+        id: newBuddy._id,
+        name: newBuddy.name,
+        email: newBuddy.email,
+        role: newBuddy.role,
+        isVerified: newBuddy.isVerified,
+        registrationCompleted: newBuddy.registrationCompleted,
+        verificationRequested: newBuddy.verificationRequested,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: "Signup failed",
+      error: err.message,
+    });
+  }
+};
+
+// Full registration form submit. This marks request for admin verification.
 exports.registerBuddy = async (req, res) => {
   try {
-    console.log("📝 BODY =>", req.body);
-    console.log("📁 FILES =>", req.files);
+    const buddy = await Buddy.findById(req.buddy.id);
+    if (!buddy) return res.status(404).json({ message: "Buddy not found" });
+    if (buddy.registrationCompleted) {
+      return res
+        .status(400)
+        .json({ message: "Registration form already submitted" });
+    }
 
     const {
       name,
       email,
       mobile,
-      password,
+      city,
       dob,
       permanentAddress,
       panNumber,
@@ -20,14 +91,16 @@ exports.registerBuddy = async (req, res) => {
       accountHolderName,
       accountNumber,
       ifscCode,
+      vehicleType,
+      vehicleNumber,
+      drivingLicenseNumber,
     } = req.body;
 
-    // 🛑 CHECK ALL FIELDS
     if (
       !name ||
       !email ||
       !mobile ||
-      !password ||
+      !city ||
       !dob ||
       !permanentAddress ||
       !panNumber ||
@@ -35,81 +108,80 @@ exports.registerBuddy = async (req, res) => {
       !bankName ||
       !accountHolderName ||
       !accountNumber ||
-      !ifscCode
+      !ifscCode ||
+      !vehicleType ||
+      !vehicleNumber ||
+      !drivingLicenseNumber
     ) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res
+        .status(400)
+        .json({ message: "All registration fields are required" });
     }
 
-    // 🛑 FILES CHECK
-    if (!req.files) {
-      return res.status(400).json({ message: "No files uploaded" });
+    if (
+      !req.files?.panImage?.[0] ||
+      !req.files?.aadhaarImage?.[0] ||
+      !req.files?.profilePhoto?.[0] ||
+      !req.files?.drivingLicenseImage?.[0]
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Profile, PAN, Aadhaar and driving license images are required" });
     }
 
-    if (!req.files.panImage || req.files.panImage.length === 0) {
-      return res.status(400).json({ message: "PAN image is required" });
-    }
-
-    if (!req.files.aadhaarImage || req.files.aadhaarImage.length === 0) {
-      return res.status(400).json({ message: "Aadhaar image is required" });
-    }
-
-    if (!req.files.profilePhoto || req.files.profilePhoto.length === 0) {
-      return res.status(400).json({ message: "Profile photo is required" });
-    }
-
-    // 🛑 EXIST CHECK
-    const exists = await Buddy.findOne({
+    const duplicate = await Buddy.findOne({
+      _id: { $ne: buddy._id },
       $or: [{ email }, { mobile }, { panNumber }, { aadhaarNumber }],
     });
 
-    if (exists) {
-      let message = "Buddy already exists with ";
-      if (exists.email === email) message += "this email";
-      else if (exists.mobile === mobile) message += "this mobile number";
-      else if (exists.panNumber === panNumber) message += "this PAN number";
-      else if (exists.aadhaarNumber === aadhaarNumber) message += "this Aadhaar number";
-      
-      return res.status(400).json({ message });
+    if (duplicate) {
+      return res
+        .status(400)
+        .json({ message: "Email, mobile, PAN or Aadhaar already in use" });
     }
 
-    // 🔐 PASSWORD HASH
-    const hashedPassword = await bcrypt.hash(password, 10);
+    buddy.name = name;
+    buddy.email = email;
+    buddy.mobile = mobile;
+    buddy.city = city;
+    buddy.dob = new Date(dob);
+    buddy.permanentAddress = permanentAddress;
+    buddy.panNumber = panNumber;
+    buddy.aadhaarNumber = aadhaarNumber;
+    buddy.bankName = bankName;
+    buddy.accountHolderName = accountHolderName;
+    buddy.accountNumber = accountNumber;
+    buddy.ifscCode = ifscCode;
+    buddy.vehicleType = vehicleType;
+    buddy.vehicleNumber = vehicleNumber;
+    buddy.drivingLicenseNumber = drivingLicenseNumber;
+    buddy.panImage = req.files.panImage[0].path;
+    buddy.aadhaarImage = req.files.aadhaarImage[0].path;
+    buddy.profilePhoto = req.files.profilePhoto[0].path;
+    buddy.drivingLicenseImage = req.files.drivingLicenseImage[0].path;
+    buddy.registrationCompleted = true;
+    buddy.verificationRequested = true;
+    buddy.verificationRequestedAt = new Date();
+    buddy.isVerified = false;
 
-    // ✅ CREATE BUDDY
-    const newBuddy = await Buddy.create({
-      name,
-      email,
-      mobile,
-      password: hashedPassword,
-      dob: new Date(dob),
-      permanentAddress,
-      panNumber,
-      aadhaarNumber,
-      bankName,
-      accountHolderName,
-      accountNumber,
-      ifscCode,
-      panImage: req.files.panImage[0].path,
-      aadhaarImage: req.files.aadhaarImage[0].path,
-      profilePhoto: req.files.profilePhoto[0].path,
-    });
+    await buddy.save();
 
-    console.log("✅ Buddy Created =>", newBuddy);
-
-    return res.status(201).json({
-      message: "Buddy registered successfully",
+    return res.status(200).json({
+      message: "Buddy registration submitted for verification",
       buddy: {
-        id: newBuddy._id,
-        name: newBuddy.name,
-        email: newBuddy.email,
+        id: buddy._id,
+        name: buddy.name,
+        email: buddy.email,
+        role: buddy.role,
+        isVerified: buddy.isVerified,
+        registrationCompleted: buddy.registrationCompleted,
+        verificationRequested: buddy.verificationRequested,
       },
     });
-
   } catch (err) {
-    console.error("❌ REGISTER ERROR =>", err);
-    return res.status(500).json({ 
-      message: "Registration failed", 
-      error: err.message 
+    return res.status(500).json({
+      message: "Registration failed",
+      error: err.message,
     });
   }
 };
@@ -128,20 +200,14 @@ exports.loginBuddy = async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    const token = jwt.sign(
-      { id: buddy._id, role: buddy.role },
-      process.env.JWT_SECRET || "your-secret-key-change-in-production",
-      { expiresIn: "7d" }
-    );
-
-    res.cookie("token", token, {
+    const token = signBuddyToken(buddy);
+    res.cookie("buddyToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // ✅ RETURN isVerified STATUS
     return res.status(200).json({
       message: "Login successful",
       buddy: {
@@ -149,20 +215,20 @@ exports.loginBuddy = async (req, res) => {
         name: buddy.name,
         email: buddy.email,
         role: buddy.role,
-        isVerified: buddy.isVerified, // ✅ ADD THIS
+        isVerified: buddy.isVerified,
+        registrationCompleted: buddy.registrationCompleted,
+        verificationRequested: buddy.verificationRequested,
       },
     });
   } catch (err) {
-    console.error("❌ LOGIN ERROR =>", err);
     return res.status(500).json({ message: "Login failed", error: err.message });
   }
 };
 
-// ✅ NEW: CHECK BUDDY STATUS
 exports.getBuddyStatus = async (req, res) => {
   try {
     const buddy = await Buddy.findById(req.buddy.id).select("-password");
-    
+
     if (!buddy) {
       return res.status(404).json({ message: "Buddy not found" });
     }
@@ -172,13 +238,39 @@ exports.getBuddyStatus = async (req, res) => {
         id: buddy._id,
         name: buddy.name,
         email: buddy.email,
+        mobile: buddy.mobile,
+        city: buddy.city,
+        dob: buddy.dob,
+        permanentAddress: buddy.permanentAddress,
+        panNumber: buddy.panNumber,
+        aadhaarNumber: buddy.aadhaarNumber,
+        bankName: buddy.bankName,
+        accountHolderName: buddy.accountHolderName,
+        accountNumber: buddy.accountNumber,
+        ifscCode: buddy.ifscCode,
+        vehicleType: buddy.vehicleType,
+        vehicleNumber: buddy.vehicleNumber,
+        drivingLicenseNumber: buddy.drivingLicenseNumber,
         role: buddy.role,
         isVerified: buddy.isVerified,
+        registrationCompleted: buddy.registrationCompleted,
+        verificationRequested: buddy.verificationRequested,
+        verificationRequestedAt: buddy.verificationRequestedAt,
+        panImage: buddy.panImage,
+        aadhaarImage: buddy.aadhaarImage,
         profilePhoto: buddy.profilePhoto,
+        drivingLicenseImage: buddy.drivingLicenseImage,
+        createdAt: buddy.createdAt,
       },
     });
   } catch (err) {
-    console.error("❌ STATUS ERROR =>", err);
-    return res.status(500).json({ message: "Failed to get status", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Failed to get status", error: err.message });
   }
+};
+
+exports.logoutBuddy = (req, res) => {
+  res.clearCookie("buddyToken", { httpOnly: true, sameSite: "lax", secure: false });
+  res.status(200).json({ message: "Buddy logged out successfully" });
 };

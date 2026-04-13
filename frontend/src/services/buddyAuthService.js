@@ -10,16 +10,26 @@ export const buddyLogin = async (data) => {
   }
 };
 
+export const buddySignup = async (data) => {
+  try {
+    const res = await api.post("/buddy/auth/signup", data, {
+      withCredentials: true,
+    });
+    return res.data;
+  } catch (err) {
+    console.error("Signup Error:", err.response?.data || err);
+    return err.response?.data || { message: "Signup failed" };
+  }
+};
+
 export const registerBuddy = async (data) => {
   try {
-    console.log("Sending registration data...");
     const res = await api.post("/buddy/auth/register", data, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
       withCredentials: true,
     });
-    console.log("Registration response:", res.data);
     return res.data;
   } catch (err) {
     console.error("Registration Error:", err.response?.data || err);
@@ -36,4 +46,9 @@ export const getBuddyStatus = async () => {
     console.error("Status Error:", err);
     throw err;
   }
+};
+
+
+export const logoutBuddyApi = async () => {
+  try { await api.post("/buddy/auth/logout"); } catch (e) {}
 };

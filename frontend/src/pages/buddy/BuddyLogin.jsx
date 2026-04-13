@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { buddyLogin } from "../../services/buddyAuthService";
+import { buddyLogin, getBuddyStatus } from "../../services/buddyAuthService";
 import buddyImage from "../../assets/buddyLogin.png";
 
 const BuddyLogin = () => {
@@ -13,7 +13,15 @@ const BuddyLogin = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ✅ Reverse guard: if already logged in, redirect to dashboard
+  useEffect(() => {
+    getBuddyStatus()
+      .then((res) => { if (res?.buddy) navigate("/buddy/dashboard"); })
+      .catch(() => {});
+  }, []);
+
   const handleChange = (e) => {
+    if (error) setError("");
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -29,7 +37,8 @@ const BuddyLogin = () => {
         localStorage.setItem("buddyData", JSON.stringify(result.buddy));
         navigate("/buddy/dashboard");
       } else {
-        setError(result.message || "Login failed");
+        setError("Invalid credentials");
+        setFormData((prev) => ({ ...prev, password: "" }));
       }
     } catch (err) {
       setError("Something went wrong");
@@ -132,3 +141,4 @@ const BuddyLogin = () => {
 };
 
 export default BuddyLogin;
+

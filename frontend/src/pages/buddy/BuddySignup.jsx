@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import SuccessPopup from "../../components/common/SuccessPopup";
 import buddyImage from "../../assets/buddyParent.png";
+import { buddySignup, getBuddyStatus } from "../../services/buddyAuthService";
 
 const BuddySignup = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ const BuddySignup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -20,6 +22,13 @@ const BuddySignup = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  // ✅ Reverse guard: if already logged in, redirect to dashboard
+  useEffect(() => {
+    getBuddyStatus()
+      .then(() => navigate("/buddy/dashboard"))
+      .catch(() => {});
+  }, []);
 
   // Handle Input Change
   const handleChange = (e) => {
@@ -75,24 +84,46 @@ const BuddySignup = () => {
     }
   };
 
-  // Handle Submit
-  const handleSubmit = (e) => {
+  // ✅ Handle Submit — calls backend API
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (formData.password !== formData.confirmPassword) {
-      setErrors({ confirmPassword: "Passwords do not match" });
+    const newErrors = {};
+
+    if (!formData.name.trim()) newErrors.name = "Full name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    if (formData.mobile.length !== 10) newErrors.mobile = "Mobile number must be 10 digits";
+    if (!formData.password || formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
+    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords do not match";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    if (formData.mobile.length !== 10) {
-      setErrors({ mobile: "Mobile number must be 10 digits" });
-      return;
+    setIsSubmitting(true);
+
+    try {
+      const res = await buddySignup({
+        name: formData.name,
+        email: formData.email,
+        mobile: formData.mobile,
+        password: formData.password,
+      });
+
+      if (res?.message === "Buddy signup successful") {
+        localStorage.setItem("buddyData", JSON.stringify(res.buddy));
+        setShowSuccessPopup(true);
+        setTimeout(() => navigate("/buddy/dashboard"), 1500);
+      } else {
+        setErrors({ general: res?.message || "Signup failed" });
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || "Signup failed";
+      setErrors({ general: msg });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    console.log("User Registered:", formData);
-
-    setShowSuccessPopup(true);
-    setTimeout(() => navigate("/login"), 2000);
   };
 
   // Styles (same as original)
@@ -107,9 +138,6 @@ const BuddySignup = () => {
     "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
 
   const errorCls = "text-xs text-red-500 font-medium mt-1";
-
-  const sectionCls =
-    "text-xs font-bold text-[#6A2AFF] uppercase tracking-widest pb-2 border-b border-gray-100 mb-4";
 
   return (
     <>
@@ -145,18 +173,24 @@ const BuddySignup = () => {
                 My Buddy
               </p>
               <h2 className="text-2xl font-bold text-gray-900">
-                User Registration
+                Buddy Registration
               </h2>
               <p className="text-sm text-gray-400 mt-1">
-                Create your account
+                Create your buddy account
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
 
+              {/* General Error */}
+              {errors.general && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 font-medium">
+                  {errors.general}
+                </div>
+              )}
+
               {/* BASIC INFO */}
               <div>
-
                 <div className="space-y-3">
 
                   {/* Name + Email */}
@@ -171,6 +205,7 @@ const BuddySignup = () => {
                         className={inputCls("name")}
                         required
                       />
+                      {errors.name && <p className={errorCls}>{errors.name}</p>}
                     </div>
 
                     <div>
@@ -229,6 +264,7 @@ const BuddySignup = () => {
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
+                      {errors.password && <p className={errorCls}>{errors.password}</p>}
                     </div>
 
                     <div>
@@ -279,18 +315,19 @@ const BuddySignup = () => {
               {/* BUTTON */}
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl text-white font-semibold"
+                disabled={isSubmitting}
+                className="w-full py-3 rounded-xl text-white font-semibold hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-80 disabled:hover:scale-100"
                 style={{
                   background:
                     "linear-gradient(90deg, #6A2AFF, #D116A8)",
                 }}
               >
-                Register
+                {isSubmitting ? "Registering..." : "Register"}
               </button>
 
               <p className="text-center text-sm text-gray-500">
                 Already have an account?{" "}
-                <Link to="/buddy/login" className="text-[#6A2AFF] font-semibold">
+                <Link to="/buddy/login" className="text-[#6A2AFF] font-semibold hover:underline">
                   Login
                 </Link>
               </p>

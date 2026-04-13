@@ -67,7 +67,7 @@ const Navbar = ({ user }) => {
           <span className="text-sm">{getGreetingEmoji()}</span>
           <div>
             <p className="text-xs font-semibold text-gray-800 leading-tight">
-              {getGreeting()}, {user?.name?.split(" ")[0] || "User"}!
+              {getGreeting()}, {user?.fullName?.split(" ")[0] || "User"}!
             </p>
             <p className="text-[11px] text-gray-400">{today}</p>
           </div>
@@ -85,10 +85,10 @@ const Navbar = ({ user }) => {
   className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition"
 >
   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#6A2AFF] to-[#D116A8] flex items-center justify-center text-white text-xs font-bold shadow-sm">
-    {user?.name?.charAt(0).toUpperCase() || "U"}
+    {user?.fullName?.charAt(0).toUpperCase() || "U"}
   </div>
   <span className="hidden md:block text-xs font-semibold text-gray-700">
-    {user?.name || "User"}
+    {user?.fullName || "User"}
   </span>
 </div>
 

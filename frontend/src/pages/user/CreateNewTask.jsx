@@ -45,11 +45,30 @@ const CreateNewTask = () => {
     return Object.keys(nextErrors).length === 0;
   };
 
+  const getCurrentPosition = () =>
+    new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation not supported"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      });
+    });
+
   const handleSubmit = async () => {
     if (!validateForm()) return;
     try {
       setLoading(true);
-      const res = await createTask(formData);
+      const position = await getCurrentPosition();
+      const payload = {
+        ...formData,
+        taskLatitude: position.coords.latitude,
+        taskLongitude: position.coords.longitude,
+      };
+      const res = await createTask(payload);
       if (res?.task) {
         localStorage.setItem("latestTaskId", res.task._id);
         localStorage.removeItem("taskDraft");
@@ -71,7 +90,7 @@ const CreateNewTask = () => {
     }
   };
 
-  const inputCls = "w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-[#6A2AFF] focus:ring-2 focus:ring-[#6A2AFF]/10 hover:border-[#8755F9] transition-all duration-200";
+  const inputCls = "w-full px-4 py-3 rounded-2xl bg-white/80 border border-gray-200 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-[#6A2AFF] focus:ring-2 focus:ring-[#6A2AFF]/10 hover:border-[#8755F9] transition-all duration-200 shadow-sm";
   const errorCls = "text-xs text-red-500 mt-1 font-medium";
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
 
@@ -99,16 +118,16 @@ const CreateNewTask = () => {
 
   return (
     <div
-      className="min-h-screen bg-[#f7f8fc] flex items-center justify-center p-4"
+      className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#f2ebff_0%,_#f7f8fc_45%,_#f8fafc_100%)] flex items-center justify-center p-4"
       style={{ backgroundImage: "linear-gradient(to bottom, rgba(106,42,255,0.08), transparent 30%)" }}
     >
       <div className="w-full max-w-2xl">
 
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-3 mb-5">
           <button
             onClick={() => navigate("/dashboard")}
-            className="p-2 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:text-[#6A2AFF] transition-all"
+            className="p-2.5 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:text-[#6A2AFF] transition-all"
           >
             <ArrowLeft size={18} />
           </button>
@@ -119,7 +138,7 @@ const CreateNewTask = () => {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(106,42,255,0.08)] border border-gray-100 p-6 md:p-8 space-y-6">
+        <div className="bg-white/95 backdrop-blur rounded-3xl shadow-[0_20px_60px_rgba(106,42,255,0.10)] border border-white p-6 md:p-7 space-y-6">
 
           {/* ── PARENT DETAILS ── */}
           <div>
@@ -171,8 +190,8 @@ const CreateNewTask = () => {
                     onClick={() => handleChange({ target: { name: "taskLocationType", value: lt.value } })}
                     className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all ${
                       formData.taskLocationType === lt.value
-                        ? "border-[#6A2AFF] bg-purple-50 text-[#6A2AFF]"
-                        : "border-gray-200 text-gray-500 hover:border-purple-300"
+                        ? "border-[#6A2AFF] bg-purple-50 text-[#6A2AFF] shadow-sm"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-purple-300 hover:bg-gray-50"
                     }`}
                   >
                     {lt.label}
@@ -209,8 +228,8 @@ const CreateNewTask = () => {
                     onClick={() => handleChange({ target: { name: "taskType", value: tt.value } })}
                     className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all text-left ${
                       formData.taskType === tt.value
-                        ? "border-[#6A2AFF] bg-purple-50 text-[#6A2AFF]"
-                        : "border-gray-200 text-gray-500 hover:border-purple-300"
+                        ? "border-[#6A2AFF] bg-purple-50 text-[#6A2AFF] shadow-sm"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-purple-300 hover:bg-gray-50"
                     }`}
                   >
                     {tt.label}
@@ -275,7 +294,7 @@ const CreateNewTask = () => {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full py-3.5 rounded-xl text-white font-semibold text-sm tracking-wide shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="w-full py-3.5 rounded-2xl text-white font-semibold text-sm tracking-wide shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             style={{ background: "linear-gradient(90deg, #6A2AFF, #D116A8)" }}
           >
             {loading ? (

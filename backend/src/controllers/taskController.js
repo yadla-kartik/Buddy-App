@@ -1,57 +1,77 @@
 const Task = require("../models/Task");
+const { notifyNearbyBuddies } = require("../socket");
 
-// CREATE TASK (existing)
 exports.createTask = async (req, res) => {
   try {
-    const task = await Task.create({
-      user: req.user._id, // 🔗 LOGIN USER
+    const taskLatitude = Number(req.body.taskLatitude);
+    const taskLongitude = Number(req.body.taskLongitude);
+    const priceByTaskType = {
+      need_help: 200,
+      pickup_drop: 250,
+      document_work: 300,
+      hospital_visit: 400,
+      walk: 180,
+      others: 220,
+    };
+    const taskType = req.body.taskType;
+    const taskPrice = priceByTaskType[taskType] || 220;
 
+    if (
+      !Number.isFinite(taskLatitude) ||
+      !Number.isFinite(taskLongitude)
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Valid task location is required" });
+    }
+
+    const task = await Task.create({
+      user: req.user._id,
       parentName: req.body.parentName,
       parentMobile: req.body.parentMobile,
       parentCurrentLocation: req.body.parentCurrentLocation,
-
       taskLocationType: req.body.taskLocationType,
       taskLocationDescription: req.body.taskLocationDescription,
-
       taskType: req.body.taskType,
       taskDescription: req.body.taskDescription,
+      taskPrice,
+      taskLatitude,
+      taskLongitude,
     });
 
-    res.status(201).json({
+    notifyNearbyBuddies(task);
+
+    return res.status(201).json({
       message: "Task created successfully",
       task,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ NEW: GET ALL PENDING TASKS (for Buddy Dashboard)
 exports.getAllPendingTasks = async (req, res) => {
   try {
-    // Get all tasks that are pending and not assigned to any buddy
     const tasks = await Task.find({
       status: "pending",
       assignedBuddy: null,
     })
-      .populate("user", "name email mobile") // Include user details
-      .sort({ createdAt: -1 }); // Latest first
+      .populate("user", "fullName email mobile")
+      .sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Tasks fetched successfully",
       tasks,
     });
   } catch (err) {
-    console.error("❌ GET TASKS ERROR =>", err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ NEW: ACCEPT TASK (Buddy accepts a task)
 exports.acceptTask = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const buddyId = req.buddy.id; // From buddyAuth middleware
+    const buddyId = req.buddy.id;
 
     const task = await Task.findById(taskId);
 
@@ -63,17 +83,15 @@ exports.acceptTask = async (req, res) => {
       return res.status(400).json({ message: "Task is no longer available" });
     }
 
-    // Assign buddy and update status
     task.assignedBuddy = buddyId;
     task.status = "accepted";
     await task.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Task accepted successfully",
       task,
     });
   } catch (err) {
-    console.error("❌ ACCEPT TASK ERROR =>", err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };

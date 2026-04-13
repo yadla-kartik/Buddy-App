@@ -1,26 +1,42 @@
-import { useState } from "react";
-import { loginUser } from "../../services/authService";
+import { useState, useEffect } from "react";
+import { loginUser, getMe } from "../../services/authService";
 import buddyImage from "../../assets/buddyLogin.png";
 import { useNavigate } from "react-router-dom";
 
 const UserLogin = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const res = await getMe();
+      if (res?.user) {
+        navigate("/dashboard");
+      }
+    };
+    checkAuth();
+  }, [navigate]);
+
   const [formData, setFormData] = useState({
     emailOrMobile: "",
     password: "",
   });
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
+    if (error) setError("");
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     const res = await loginUser(formData);
     if (res?.message === "Login successful") {
+      localStorage.setItem("userData", JSON.stringify(res.user));
       navigate("/dashboard");
     } else {
-      alert("Invalid login");
+      setError("Invalid credentials");
+      setFormData((prev) => ({ ...prev, password: "" }));
     }
   };
 
@@ -37,13 +53,15 @@ const UserLogin = () => {
 
         {/* LEFT — Form */}
         <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-          <div className="mb-8">
+          <div className="mb-6">
             <p className="text-xs font-semibold text-[#6A2AFF] uppercase tracking-widest mb-1">My Buddy</p>
             <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
             <p className="text-sm text-gray-400 mt-1">Login to manage your parents' care</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+
             <div>
               <label className={labelCls}>Email or Mobile <span className="text-red-400">*</span></label>
               <input
@@ -61,6 +79,7 @@ const UserLogin = () => {
               <input
                 type="password"
                 name="password"
+                value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter your password"
                 className={inputCls}

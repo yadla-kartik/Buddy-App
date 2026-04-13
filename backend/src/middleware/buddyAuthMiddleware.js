@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 
 module.exports = (req, res, next) => {
   // Check for token in cookies (first priority)
-  let token = req.cookies.token;
+  let token = req.cookies.buddyToken;
 
   // If not in cookies, check Authorization header
   if (!token && req.headers.authorization) {

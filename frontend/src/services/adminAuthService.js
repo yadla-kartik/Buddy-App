@@ -37,3 +37,9 @@ export const getAdminMe = async () => {
     return null;
   }
 };
+
+
+
+export const logoutAdminApi = async () => {
+  try { await api.post("/admin/logout"); } catch (e) {}
+};

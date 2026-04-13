@@ -24,24 +24,27 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    fatherName: {
+    city: {
       type: String,
       required: true,
     },
 
-    fatherMobile: {
+    state: {
       type: String,
-      required: false,   // optional
     },
 
-    motherName: {
+    address: {
+      type: String,
+    },
+
+    emergencyContact: {
       type: String,
       required: true,
     },
 
-    motherMobile: {
+    alternateContact: {
       type: String,
-      required: false,   // optional
+      required: true,
     },
 
     role: {

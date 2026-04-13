@@ -18,7 +18,6 @@ import Payment from "./pages/Payment";
 import Profile from "./pages/user/Userprofile";
 
 import AdminLogin from "./pages/admin/AdminLogin";
-import AdminRegister from "./pages/admin/AdminRegister";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 
 import Layout from "./components/Layout";
@@ -53,7 +52,6 @@ function App() {
 
         {/* ADMIN */}
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/register" element={<AdminRegister />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
       </Routes>

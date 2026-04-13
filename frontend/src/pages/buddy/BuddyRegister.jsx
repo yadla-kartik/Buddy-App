@@ -1,33 +1,68 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Eye, EyeOff, Upload, User, FileText, CreditCard, ArrowLeft, ArrowRight } from "lucide-react";
-import { registerBuddy } from "../../services/buddyAuthService";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Upload, User, FileText, CreditCard, ArrowLeft, ArrowRight } from "lucide-react";
+import { registerBuddy, getBuddyStatus } from "../../services/buddyAuthService";
 
 const STEPS = [
-  { number: 1, label: "Basic Info",   icon: <User size={14} />       },
-  { number: 2, label: "Documents",    icon: <FileText size={14} />   },
+  { number: 1, label: "Basic Info", icon: <User size={14} /> },
+  { number: 2, label: "Documents", icon: <FileText size={14} /> },
   { number: 3, label: "Bank Details", icon: <CreditCard size={14} /> },
 ];
 
 const BuddyRegister = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: "", email: "", mobile: "", password: "", confirmPassword: "",
+    name: "", email: "", mobile: "",
     city: "", dob: "", permanentAddress: "",
-    panNumber: "", aadhaarNumber: "",
+    panNumber: "", aadhaarNumber: "", drivingLicenseNumber: "",
     bankName: "", accountHolderName: "", accountNumber: "", ifscCode: "",
+    vehicleType: "", vehicleNumber: "",
   });
 
   const [files, setFiles] = useState({
-    panImage: null, aadhaarImage: null,
+    profilePhoto: null, panImage: null, aadhaarImage: null, drivingLicenseImage: null,
   });
 
   const [errors, setErrors] = useState({});
+
+  // Prefill signup/login details in register form
+  useEffect(() => {
+    const prefill = async () => {
+      try {
+        const res = await getBuddyStatus();
+        const b = res?.buddy;
+        if (!b) return;
+
+        if (b.registrationCompleted) {
+          navigate("/buddy/dashboard");
+          return;
+        }
+
+        setFormData((prev) => ({
+          ...prev,
+          name: b.name || prev.name,
+          email: b.email || prev.email,
+          mobile: b.mobile || prev.mobile,
+          city: b.city || prev.city,
+          dob: b.dob ? new Date(b.dob).toISOString().slice(0, 10) : prev.dob,
+          permanentAddress: b.permanentAddress || prev.permanentAddress,
+          panNumber: b.panNumber || prev.panNumber,
+          aadhaarNumber: b.aadhaarNumber || prev.aadhaarNumber,
+          drivingLicenseNumber: b.drivingLicenseNumber || prev.drivingLicenseNumber,
+          bankName: b.bankName || prev.bankName,
+          accountHolderName: b.accountHolderName || prev.accountHolderName,
+          accountNumber: b.accountNumber || prev.accountNumber,
+          ifscCode: b.ifscCode || prev.ifscCode,
+          vehicleType: b.vehicleType || prev.vehicleType,
+          vehicleNumber: b.vehicleNumber || prev.vehicleNumber,
+        }));
+      } catch (e) {}
+    };
+    prefill();
+  }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -65,14 +100,6 @@ const BuddyRegister = () => {
       setErrors({ ...errors, email: value && !emailRegex.test(value) ? "Please enter a valid email" : "" });
     }
 
-    if (name === "confirmPassword") {
-      setErrors({ ...errors, confirmPassword: value !== formData.password ? "Passwords do not match" : "" });
-    }
-
-    if (name === "password") {
-      setErrors({ ...errors, confirmPassword: formData.confirmPassword && value !== formData.confirmPassword ? "Passwords do not match" : "" });
-    }
-
     if (name === "dob") {
       const today = new Date();
       const birthDate = new Date(value);
@@ -90,27 +117,39 @@ const BuddyRegister = () => {
   const validateStep = (s) => {
     const e = {};
     if (s === 1) {
-      if (!formData.name.trim())                                          e.name            = "Full name is required";
-      if (!formData.email.trim())                                         e.email           = "Email is required";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))       e.email           = "Enter a valid email";
-      if (!formData.mobile.trim() || formData.mobile.length !== 10)       e.mobile          = "Enter a valid 10-digit number";
-      if (!formData.city.trim())                                          e.city            = "City is required";
-      if (!formData.password.trim() || formData.password.length < 8)     e.password        = "Min. 8 characters required";
-      if (formData.password !== formData.confirmPassword)                 e.confirmPassword = "Passwords do not match";
-      if (!formData.dob)                                                  e.dob             = "Date of birth is required";
-      if (!formData.permanentAddress.trim())                              e.permanentAddress= "Address is required";
+      if (!formData.name.trim()) e.name = "Full name is required";
+      if (!formData.email.trim()) e.email = "Email is required";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = "Enter a valid email";
+      if (!formData.mobile.trim() || formData.mobile.length !== 10) e.mobile = "Enter a valid 10-digit number";
+      if (!formData.city.trim()) e.city = "City is required";
+      if (!formData.dob) {
+        e.dob = "Date of birth is required";
+      } else {
+        const today = new Date();
+        const birthDate = new Date(formData.dob);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
+        if (age < 18) e.dob = "You must be at least 18 years old";
+      }
+      if (!formData.permanentAddress.trim()) e.permanentAddress = "Address is required";
+      if (!files.profilePhoto) e.profilePhoto = "Profile photo is required";
     }
     if (s === 2) {
-      if (formData.panNumber.length !== 10)     e.panNumber     = "PAN must be exactly 10 characters";
+      if (formData.panNumber.length !== 10) e.panNumber = "PAN must be exactly 10 characters";
       if (formData.aadhaarNumber.length !== 12) e.aadhaarNumber = "Aadhaar must be exactly 12 digits";
-      if (!files.panImage)                      e.panImage      = "PAN card image is required";
-      if (!files.aadhaarImage)                  e.aadhaarImage  = "Aadhaar card image is required";
+      if (!formData.drivingLicenseNumber.trim()) e.drivingLicenseNumber = "Driving licence number is required";
+      if (!files.panImage) e.panImage = "PAN card image is required";
+      if (!files.aadhaarImage) e.aadhaarImage = "Aadhaar card image is required";
+      if (!files.drivingLicenseImage) e.drivingLicenseImage = "Driving licence image is required";
     }
     if (s === 3) {
-      if (!formData.bankName.trim())            e.bankName          = "Bank name is required";
-      if (!formData.accountHolderName.trim())   e.accountHolderName = "Account holder name is required";
-      if (!formData.accountNumber.trim())       e.accountNumber     = "Account number is required";
-      if (!formData.ifscCode.trim())            e.ifscCode          = "IFSC code is required";
+      if (!formData.bankName.trim()) e.bankName = "Bank name is required";
+      if (!formData.accountHolderName.trim()) e.accountHolderName = "Account holder name is required";
+      if (!formData.accountNumber.trim()) e.accountNumber = "Account number is required";
+      if (!formData.ifscCode.trim()) e.ifscCode = "IFSC code is required";
+      if (!formData.vehicleType.trim()) e.vehicleType = "Vehicle type is required";
+      if (!formData.vehicleNumber.trim()) e.vehicleNumber = "Vehicle number is required";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -126,19 +165,16 @@ const BuddyRegister = () => {
     setIsSubmitting(true);
     const data = new FormData();
     Object.keys(formData).forEach((key) => data.append(key, formData[key]));
+    data.append("profilePhoto", files.profilePhoto);
     data.append("panImage", files.panImage);
     data.append("aadhaarImage", files.aadhaarImage);
+    data.append("drivingLicenseImage", files.drivingLicenseImage);
 
     const res = await registerBuddy(data);
     setIsSubmitting(false);
 
-    if (res?.message === "Buddy registered successfully") {
-      // Save to localStorage → dashboard reads this and shows PendingView
-      localStorage.setItem("buddyData", JSON.stringify({
-        name: formData.name,
-        email: formData.email,
-        isVerified: false,
-      }));
+    if (res?.message === "Buddy registration submitted for verification") {
+      localStorage.setItem("buddyData", JSON.stringify(res.buddy));
       navigate("/buddy/dashboard");
     } else {
       alert(res?.message || "Registration failed");
@@ -146,10 +182,9 @@ const BuddyRegister = () => {
   };
 
   const inputCls = (name) =>
-    `w-full px-4 py-3 rounded-xl bg-gray-50 border text-sm text-gray-800 placeholder-gray-400 outline-none transition-all duration-200 ${
-      errors[name]
-        ? "border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-100"
-        : "border-gray-200 focus:border-[#6A2AFF] focus:ring-2 focus:ring-[#6A2AFF]/10 hover:border-[#8755F9]"
+    `w-full px-4 py-3 rounded-xl bg-gray-50 border text-sm text-gray-800 placeholder-gray-400 outline-none transition-all duration-200 ${errors[name]
+      ? "border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-100"
+      : "border-gray-200 focus:border-[#6A2AFF] focus:ring-2 focus:ring-[#6A2AFF]/10 hover:border-[#8755F9]"
     }`;
 
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
@@ -161,9 +196,8 @@ const BuddyRegister = () => {
       <input type="file" name={name} onChange={handleFileChange} className="hidden" id={name} accept="image/*,.pdf" />
       <label
         htmlFor={name}
-        className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-gray-50 border cursor-pointer transition-all text-sm text-gray-500 ${
-          errors[name] ? "border-red-400" : "border-gray-200 hover:border-[#8755F9] hover:bg-purple-50"
-        }`}
+        className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-gray-50 border cursor-pointer transition-all text-sm text-gray-500 ${errors[name] ? "border-red-400" : "border-gray-200 hover:border-[#8755F9] hover:bg-purple-50"
+          }`}
       >
         <Upload size={15} className="text-gray-400" />
         <span className="truncate">{files[name] ? files[name].name : `Choose ${label}`}</span>
@@ -199,15 +233,14 @@ const BuddyRegister = () => {
           <div className="flex items-center justify-center gap-1 mb-6">
             {STEPS.map((s, i) => {
               const isActive = step === s.number;
-              const isDone   = step > s.number;
+              const isDone = step > s.number;
               return (
                 <div key={s.number} className="flex items-center">
                   <div className="flex flex-col items-center gap-1">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold border-2 transition-all ${
-                      isDone || isActive
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold border-2 transition-all ${isDone || isActive
                         ? "bg-gradient-to-br from-[#6A2AFF] to-[#D116A8] border-transparent text-white shadow-md"
                         : "border-gray-200 text-gray-400 bg-white"
-                    }`}>
+                      }`}>
                       {isDone ? "✓" : s.number}
                     </div>
                     <span className={`text-[11px] whitespace-nowrap font-semibold ${isActive ? "text-[#6A2AFF]" : "text-gray-400"}`}>
@@ -261,29 +294,6 @@ const BuddyRegister = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>Password <span className="text-red-400">*</span></label>
-                    <div className="relative">
-                      <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} placeholder="Min. 8 characters" className={inputCls("password")} />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    {errors.password && <p className={errorCls}>{errors.password}</p>}
-                  </div>
-                  <div>
-                    <label className={labelCls}>Confirm Password <span className="text-red-400">*</span></label>
-                    <div className="relative">
-                      <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="Re-enter password" className={inputCls("confirmPassword")} />
-                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    {errors.confirmPassword && <p className={errorCls}>{errors.confirmPassword}</p>}
-                  </div>
-                </div>
-
                 <div>
                   <label className={labelCls}>Date of Birth <span className="text-red-400">*</span></label>
                   <input type="date" name="dob" value={formData.dob} onChange={handleChange} className={inputCls("dob")} />
@@ -294,6 +304,10 @@ const BuddyRegister = () => {
                   <label className={labelCls}>Permanent Address <span className="text-red-400">*</span></label>
                   <textarea name="permanentAddress" value={formData.permanentAddress} onChange={handleChange} placeholder="Your full address" rows="2" className={`${inputCls("permanentAddress")} resize-none`} />
                   {errors.permanentAddress && <p className={errorCls}>{errors.permanentAddress}</p>}
+                </div>
+
+                <div>
+                  <FileUpload name="profilePhoto" label="Upload Photo" required />
                 </div>
               </>
             )}
@@ -324,6 +338,23 @@ const BuddyRegister = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <FileUpload name="panImage" label="PAN Card Image" required />
                   <FileUpload name="aadhaarImage" label="Aadhaar Card Image" required />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Driving Licence Number <span className="text-red-400">*</span></label>
+                    <input
+                      name="drivingLicenseNumber"
+                      value={formData.drivingLicenseNumber}
+                      onChange={handleChange}
+                      placeholder="Enter driving licence number"
+                      className={inputCls("drivingLicenseNumber")}
+                    />
+                    {errors.drivingLicenseNumber && <p className={errorCls}>{errors.drivingLicenseNumber}</p>}
+                  </div>
+                  <div>
+                    <FileUpload name="drivingLicenseImage" label="Driving Licence Image" required />
+                  </div>
                 </div>
               </>
             )}
@@ -361,6 +392,31 @@ const BuddyRegister = () => {
                     <label className={labelCls}>IFSC Code <span className="text-red-400">*</span></label>
                     <input name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g. SBIN0001234" className={inputCls("ifscCode")} />
                     {errors.ifscCode && <p className={errorCls}>{errors.ifscCode}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Vehicle Type <span className="text-red-400">*</span></label>
+                    <input
+                      name="vehicleType"
+                      value={formData.vehicleType}
+                      onChange={handleChange}
+                      placeholder="Bike/Car/Scooter"
+                      className={inputCls("vehicleType")}
+                    />
+                    {errors.vehicleType && <p className={errorCls}>{errors.vehicleType}</p>}
+                  </div>
+                  <div>
+                    <label className={labelCls}>Vehicle Number <span className="text-red-400">*</span></label>
+                    <input
+                      name="vehicleNumber"
+                      value={formData.vehicleNumber}
+                      onChange={handleChange}
+                      placeholder="e.g. MH12AB1234"
+                      className={inputCls("vehicleNumber")}
+                    />
+                    {errors.vehicleNumber && <p className={errorCls}>{errors.vehicleNumber}</p>}
                   </div>
                 </div>
 

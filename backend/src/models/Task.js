@@ -56,6 +56,19 @@ const taskSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    taskPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    taskLatitude: {
+      type: Number,
+      required: true,
+    },
+    taskLongitude: {
+      type: Number,
+      required: true,
+    },
 
     // 🤝 FUTURE: ASSIGNED BUDDY
     assignedBuddy: {

@@ -73,7 +73,7 @@ const UserDashboard = () => {
               <CheckCircle2 size={12} /> Parent Dashboard
             </span>
             <h2 className="text-2xl md:text-3xl font-bold text-white mb-1">
-              Welcome back, {user?.name?.split(" ")[0] || "User"} 👋
+              Welcome back, {user?.fullName?.split(" ")[0] || "User"} 👋
             </h2>
             <p className="text-white/70 text-sm max-w-md leading-relaxed">
               Track your buddies, manage care tasks, and review monthly spending — all in one place.

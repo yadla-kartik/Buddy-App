@@ -5,6 +5,7 @@ const buddySchema = new mongoose.Schema({
   email: { type: String, unique: true },
   mobile: { type: String, unique: true },
   password: String,
+  city: String,
   dob: Date,
   permanentAddress: String,
   panNumber: { type: String, unique: true },
@@ -16,9 +17,16 @@ const buddySchema = new mongoose.Schema({
   accountHolderName: String,
   accountNumber: String,
   ifscCode: String,
+  vehicleType: String,
+  vehicleNumber: String,
+  drivingLicenseNumber: String,
+  drivingLicenseImage: String,
 
   profilePhoto: String,
   isVerified: { type: Boolean, default: false },
+  registrationCompleted: { type: Boolean, default: false },
+  verificationRequested: { type: Boolean, default: false },
+  verificationRequestedAt: Date,
   role: { type: String, default: "buddy" }
 }, { timestamps: true });
 

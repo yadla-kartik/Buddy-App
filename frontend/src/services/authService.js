@@ -26,3 +26,28 @@ export const getMe = async () => {
     return null;
   }
 };
+
+export const changePassword = async (data) => {
+  try {
+    // data should contain { currentPassword, newPassword }
+    const res = await api.put("/auth/change-password", data);
+    return res.data;
+  } catch (err) {
+    return err.response?.data || { message: "Failed to change password" };
+  }
+};
+
+export const updateProfile = async (data) => {
+  try {
+    const res = await api.put("/auth/update-profile", data);
+    return res.data;
+  } catch (err) {
+    return err.response?.data || { message: "Failed to update profile" };
+  }
+};
+
+
+
+export const logoutUser = async () => {
+  try { await api.post("/auth/logout"); } catch (e) {}
+};

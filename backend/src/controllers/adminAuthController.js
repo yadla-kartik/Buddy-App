@@ -98,3 +98,10 @@ exports.getAdminMe = async (req, res) => {
     res.status(500).json({ message: "Failed to load admin" });
   }
 };
+
+
+
+exports.adminLogout = (req, res) => {
+  res.clearCookie("adminToken", { httpOnly: true, sameSite: "lax", secure: false });
+  res.status(200).json({ message: "Admin logged out successfully" });
+};

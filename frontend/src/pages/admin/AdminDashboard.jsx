@@ -1,456 +1,623 @@
 import { useState, useEffect } from "react";
-import { getAdminMe } from "../../services/adminAuthService";
-import { FaUsers, FaCalendarAlt, FaUserCheck, FaChartBar, FaSignOutAlt, FaSearch, FaBell, FaFilter } from "react-icons/fa";
-import { X, ChevronLeft, ChevronRight, Mail, Phone, MapPin, CreditCard, Building, CheckCircle, XCircle } from "lucide-react";
-import { getAllBuddies, getBuddyById, verifyBuddy } 
-from "../../services/adminBuddyService";
+import { useNavigate } from "react-router-dom";
+import { getAdminMe, logoutAdminApi } from "../../services/adminAuthService";
+import { FaUsers, FaUserCheck, FaSignOutAlt, FaSearch, FaBell, FaFilter, FaBriefcase, FaTasks } from "react-icons/fa";
+import { X, ChevronLeft, ChevronRight, Mail, Phone, MapPin, CheckCircle, LayoutDashboard, Clock, Activity, TrendingUp, MoreVertical, Calendar } from "lucide-react";
+import { getAllBuddies, getBuddyById, verifyBuddy } from "../../services/adminBuddyService";
 
+// --- DUMMY DATA ---
+const dummyUsers = [
+  { id: 1, name: "Alice Johnson", email: "alice@example.com", role: "Applicant", status: "Active", joined: "2024-03-15" },
+  { id: 2, name: "Bob Smith", email: "bob@example.com", role: "User", status: "Inactive", joined: "2024-03-12" },
+  { id: 3, name: "Charlie Davis", email: "charlie@example.com", role: "Applicant", status: "Active", joined: "2024-03-10" },
+  { id: 4, name: "Diana Prince", email: "diana@example.com", role: "User", status: "Active", joined: "2024-03-08" },
+];
 
+const dummyInterviews = [
+  { id: 1, candidate: "Sarah Wilson", role: "Frontend Buddy", date: "Apr 12, 10:00 AM", status: "Scheduled", interviewer: "Admin" },
+  { id: 2, candidate: "James Brown", role: "Backend Buddy", date: "Apr 12, 02:00 PM", status: "Completed", interviewer: "Admin" },
+  { id: 3, candidate: "Emily Clark", role: "UI/UX Buddy", date: "Apr 13, 11:30 AM", status: "Pending", interviewer: "Unassigned" },
+];
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [admin, setAdmin] = useState(null);
   const [buddies, setBuddies] = useState([]);
-  const [activeMenu, setActiveMenu] = useState("Buddies");
+  const [activeMenu, setActiveMenu] = useState("Overview");
+
+  // Buddy States
   const [selectedBuddy, setSelectedBuddy] = useState(null);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
-const perPage = 5;
+  const perPage = 5;
 
-// ✅ SEARCH SAFE FILTER
-const filteredBuddies = buddies.filter((b) => {
-  const name = b.name ? b.name.toLowerCase() : "";
-  const email = b.email ? b.email.toLowerCase() : "";
+  const filteredBuddies = buddies.filter((b) => {
+    const name = b.name ? b.name.toLowerCase() : "";
+    const email = b.email ? b.email.toLowerCase() : "";
+    return name.includes(searchQuery.toLowerCase()) || email.includes(searchQuery.toLowerCase());
+  });
 
-  return (
-    name.includes(searchQuery.toLowerCase()) ||
-    email.includes(searchQuery.toLowerCase())
-  );
-});
+  const totalPages = Math.ceil(filteredBuddies.length / perPage);
+  const start = (page - 1) * perPage;
+  const visibleBuddies = filteredBuddies.slice(start, start + perPage);
 
-// ✅ PAGINATION
-const totalPages = Math.ceil(filteredBuddies.length / perPage);
-const start = (page - 1) * perPage;
-const visibleBuddies = filteredBuddies.slice(start, start + perPage);
-
-
-  const stats = [
-    { label: "Total Buddies", value: "156", icon: <FaUserCheck />, color: "from-purple-500 to-pink-500" },
-    { label: "Pending", value: "24", icon: <FaCalendarAlt />, color: "from-orange-500 to-yellow-500" },
-    { label: "Verified", value: "132", icon: <CheckCircle />, color: "from-green-500 to-emerald-500" },
-    { label: "Interviews", value: "8", icon: <FaUsers />, color: "from-blue-500 to-cyan-500" },
+  const statsCards = [
+    { label: "Total Buddies", value: "156", icon: <FaUserCheck size={20} />, color: "from-indigo-500 to-blue-600", trend: "+12%" },
+    { label: "Pending verifications", value: "24", icon: <Clock size={20} />, color: "from-orange-400 to-amber-500", trend: "-5%" },
+    { label: "Verified Buddies", value: "132", icon: <CheckCircle size={20} />, color: "from-emerald-400 to-green-600", trend: "+18%" },
+    { label: "Scheduled Interviews", value: "8", icon: <Calendar size={20} />, color: "from-purple-500 to-pink-600", trend: "+2%" },
   ];
 
   useEffect(() => {
-  const fetchBuddies = async () => {
-    const data = await getAllBuddies();
-    setBuddies(data);
-  };
-  fetchBuddies();
-}, []);
-
+    const fetchBuddies = async () => {
+      try {
+        const data = await getAllBuddies();
+        if (data) setBuddies(data);
+      } catch (e) { }
+    };
+    fetchBuddies();
+  }, []);
 
   useEffect(() => {
-  const fetchAdmin = async () => {
-    const res = await getAdminMe();
-    if (res) {
-      setAdmin(res);
-    }
-  };
-  fetchAdmin();
-}, []);
+    const fetchAdmin = async () => {
+      try {
+        const res = await getAdminMe();
+        if (res) setAdmin(res);
+        else navigate("/admin/login");
+      } catch (e) {
+        navigate("/admin/login");
+      }
+    };
+    fetchAdmin();
+  }, []);
 
+  // SUBCOMPONENTS //
+  const OverviewView = () => (
+    <div className="animate-fade-in-up space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statsCards.map((stat, idx) => (
+          <div key={idx} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group">
+            <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${stat.color} opacity-10 rounded-bl-full`}></div>
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform`}>
+                {stat.icon}
+              </div>
+              <span className={`text-sm font-bold ${stat.trend.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
+                {stat.trend}
+              </span>
+            </div>
+            <p className="text-3xl font-extrabold text-gray-800">{stat.value}</p>
+            <p className="text-sm text-gray-500 font-medium mt-1">{stat.label}</p>
+          </div>
+        ))}
+      </div>
 
-  return (
-    <div className="min-h-screen flex bg-gray-50">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Activity */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-gray-800">Recent Applications</h3>
+            <button className="text-sm text-indigo-600 font-semibold hover:underline" onClick={() => setActiveMenu("Buddies")}>View All</button>
+          </div>
+          <div className="space-y-4">
+            {buddies.slice(0, 4).map(buddy => (
+              <div key={buddy._id || Math.random()} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
+                    {buddy.name?.charAt(0) || "U"}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{buddy.name || "Unknown"}</p>
+                    <p className="text-xs text-gray-500">{buddy.email || "No email"}</p>
+                  </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${buddy.isVerified ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                  {buddy.isVerified ? "Verified" : "Pending"}
+                </span>
+              </div>
+            ))}
+            {buddies.length === 0 && <p className="text-gray-500 text-sm">No applications found.</p>}
+          </div>
+        </div>
+        {/* Upcoming Interviews Summary */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-gray-800">Upcoming Interviews</h3>
+          </div>
+          <div className="space-y-4">
+            {dummyInterviews.slice(0, 3).map(interview => (
+              <div key={interview.id} className="border-l-4 border-indigo-500 pl-4 py-1">
+                <p className="text-sm font-bold text-gray-800">{interview.candidate}</p>
+                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Clock size={12} /> {interview.date}</p>
+              </div>
+            ))}
+          </div>
+          <button className="w-full mt-6 py-2.5 bg-indigo-50 text-indigo-600 font-bold rounded-xl hover:bg-indigo-100 transition" onClick={() => setActiveMenu("Interviews")}>
+            Manage Interveiws
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-      {/* ========== SIDEBAR ========== */}
-      <aside className="w-72 bg-white shadow-xl p-6 hidden md:block border-r border-gray-200">
-        {/* Logo Section */}
-        <div className="mb-10 text-center">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Buddy Admin
-          </h2>
-          <p className="text-xs text-gray-500 mt-1">Employee Panel</p>
+  const BuddiesListView = () => (
+    <div className="animate-fade-in-up">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative flex-1 w-full max-w-md">
+          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search applicant by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+          />
+        </div>
+        <div className="flex gap-3">
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all font-medium border-dashed">
+            <FaFilter size={14} /> <span>Filters</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse min-w-[600px]">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-sm">
+                <th className="p-5 font-semibold">Applicant</th>
+                <th className="p-5 font-semibold">Status</th>
+                <th className="p-5 font-semibold">Joined Date</th>
+                <th className="p-5 font-semibold text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {visibleBuddies.map((buddy, idx) => (
+                <tr key={buddy._id || idx} className="hover:bg-indigo-50/50 transition-colors group">
+                  <td className="p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold shadow-sm">
+                        {buddy.name ? buddy.name.charAt(0) : "?"}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">{buddy.name}</p>
+                        <p className="text-sm text-gray-500">{buddy.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-5">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${buddy.isVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                      {buddy.isVerified ? <CheckCircle size={12} /> : <Clock size={12} />}
+                      {buddy.isVerified ? "Verified" : "Pending"}
+                    </span>
+                  </td>
+                  <td className="p-5 text-sm text-gray-600">
+                    {buddy.createdAt ? new Date(buddy.createdAt).toLocaleDateString() : "2 days ago"}
+                  </td>
+                  <td className="p-5 text-right">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const fullBuddy = await getBuddyById(buddy._id);
+                          setSelectedBuddy(fullBuddy || buddy); // fallback if fullbuddy fails
+                        } catch (e) {
+                          setSelectedBuddy(buddy);
+                        }
+                      }}
+                      className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-bold hover:bg-indigo-600 hover:text-white transition-colors border border-indigo-100 hover:border-indigo-600"
+                    >
+                      Review
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {visibleBuddies.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="p-8 text-center text-gray-500">No applicants found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
-        <ul className="space-y-2">
-          {[
-            { label: "Buddies", icon: <FaUserCheck size={18} /> },
-            { label: "Schedule Interview", icon: <FaCalendarAlt size={18} /> },
-            { label: "Users", icon: <FaUsers size={18} /> },
-            { label: "Reports", icon: <FaChartBar size={18} /> },
-          ].map((item) => (
-            <li
-              key={item.label}
-              onClick={() => setActiveMenu(item.label)}
-              className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all duration-300 transform hover:scale-105
-              ${activeMenu === item.label
-                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-300"
-                  : "text-gray-600 hover:bg-purple-50"}`}
-            >
-              {item.icon}
-              <span className="font-medium">{item.label}</span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-auto pt-10">
-          <div className="flex items-center gap-3 text-red-500 cursor-pointer p-4 rounded-xl hover:bg-red-50 transition-all">
-            <FaSignOutAlt size={18} />
-            <span className="font-medium">Logout</span>
+        {/* Pagination */}
+        <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <p className="text-sm text-gray-500">Showing <span className="font-semibold text-gray-700">{buddies.length > 0 ? start + 1 : 0} - {Math.min(start + perPage, filteredBuddies.length)}</span> of <span className="font-semibold text-gray-700">{filteredBuddies.length}</span></p>
+          <div className="flex gap-2">
+            <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-2 border border-gray-200 rounded-lg bg-white disabled:opacity-50 hover:bg-gray-50 transition">
+              <ChevronLeft size={16} />
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${page === pageNum
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
+                      : "bg-transparent text-gray-600 hover:bg-gray-100"
+                    }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+            </div>
+            <button disabled={page === totalPages || totalPages === 0} onClick={() => setPage(page + 1)} className="p-2 border border-gray-200 rounded-lg bg-white disabled:opacity-50 hover:bg-gray-50 transition">
+              <ChevronRight size={16} />
+            </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const UsersView = () => (
+    <div className="animate-fade-in-up bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <div>
+          <h2 className="text-lg font-bold text-gray-800">All System Users</h2>
+          <p className="text-sm text-gray-500">Manage all registered users in the platform.</p>
+        </div>
+        <button className="px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-semibold shadow-md hover:bg-gray-800 transition">
+          Export CSV
+        </button>
+      </div>
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="border-b border-gray-100 text-gray-500 text-sm">
+            <th className="p-5 font-semibold">User Details</th>
+            <th className="p-5 font-semibold">Role</th>
+            <th className="p-5 font-semibold">Status</th>
+            <th className="p-5 font-semibold">Joined Date</th>
+            <th className="p-5 font-semibold text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {dummyUsers.map(user => (
+            <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+              <td className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800">{user.name}</p>
+                    <p className="text-sm text-gray-500">{user.email}</p>
+                  </div>
+                </div>
+              </td>
+              <td className="p-5">
+                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-bold">{user.role}</span>
+              </td>
+              <td className="p-5">
+                <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${user.status === 'Active' ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`w-2 h-2 rounded-full ${user.status === 'Active' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  {user.status}
+                </span>
+              </td>
+              <td className="p-5 text-sm text-gray-600">{user.joined}</td>
+              <td className="p-5 text-right">
+                <button className="text-gray-400 hover:text-gray-800 transition"><MoreVertical size={18} /></button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const InterviewsView = () => (
+    <div className="animate-fade-in-up space-y-6">
+      <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">Interview Schedule</h2>
+          <p className="text-sm text-gray-500">Manage upcoming buddy interviews</p>
+        </div>
+        <button className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 transition flex items-center gap-2">
+          <Calendar size={16} /> Schedule Interview
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {dummyInterviews.map((item, i) => (
+          <div key={item.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition">
+            <div className={`absolute top-0 left-0 w-1.5 h-full ${item.status === 'Scheduled' ? 'bg-blue-500' : item.status === 'Completed' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+            <div className="flex justify-between items-start mb-4 pl-2">
+              <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${item.status === 'Scheduled' ? 'bg-blue-50 text-blue-600' : item.status === 'Completed' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
+                {item.status}
+              </span>
+              <button className="text-gray-400 hover:text-gray-800"><MoreVertical size={16} /></button>
+            </div>
+            <div className="pl-2">
+              <h3 className="text-lg font-bold text-gray-800">{item.candidate}</h3>
+              <p className="text-sm text-indigo-500 font-semibold mb-4">{item.role}</p>
+              <div className="space-y-2 mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
+                  <Clock size={14} className="text-gray-400" /> <span>{item.date}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
+                  <FaUserCheck size={14} className="text-gray-400" /> <span>Reviewer: {item.interviewer}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const ReportsView = () => (
+    <div className="animate-fade-in-up flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm h-full">
+      <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
+        <Activity className="text-indigo-500" size={40} />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-2">Analytics & Reports</h2>
+      <p className="text-gray-500 max-w-md text-center">Detailed charts and system wide analytics will be available in the next major performance update.</p>
+      <button className="mt-8 px-6 py-3 bg-gray-900 text-white rounded-xl font-bold shadow-md hover:bg-gray-800 transition hover:shadow-lg">
+        Generate Quick Report PDF
+      </button>
+    </div>
+  );
+
+  const renderContent = () => {
+    switch (activeMenu) {
+      case "Overview": return <OverviewView />;
+      case "Buddies": return <BuddiesListView />;
+      case "Users": return <UsersView />;
+      case "Interviews": return <InterviewsView />;
+      case "Reports": return <ReportsView />;
+      default: return <OverviewView />;
+    }
+  };
+
+  const navItems = [
+    { label: "Overview", icon: <LayoutDashboard size={18} /> },
+    { label: "Buddies", icon: <FaUserCheck size={18} /> },
+    { label: "Users", icon: <FaUsers size={18} /> },
+    { label: "Interviews", icon: <FaTasks size={18} /> },
+    { label: "Reports", icon: <TrendingUp size={18} /> },
+  ];
+
+  return (
+    <div className="min-h-screen flex bg-[#f4f7fb] font-sans text-gray-800 selection:bg-indigo-100 selection:text-indigo-900">
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.4s ease-out forwards;
+        }
+        @keyframes modalPop {
+          0% { opacity: 0; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .animate-modal-pop {
+          animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1; 
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #d1d5db; 
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #9ca3af; 
+        }
+      `}</style>
+
+      {/* ========== SIDEBAR ========== */}
+      <aside className="w-[280px] bg-white border-r border-gray-100 flex flex-col fixed h-full z-10 transition-all shadow-sm">
+        <div className="p-6 pt-8 flex items-center justify-center border-b border-gray-50/50">
+          <div className="flex items-center gap-3 w-full px-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+              <FaBriefcase className="text-white text-lg" />
+            </div>
+            <div className="overflow-hidden">
+              <h2 className="text-xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent tracking-tight truncate">
+                AdminSpace
+              </h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-left">Control Panel</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-8 space-y-1.5 custom-scrollbar">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-3">Main Menu</p>
+          {navItems.map((item) => {
+            const isActive = activeMenu === item.label;
+            return (
+              <button
+                key={item.label}
+                onClick={() => setActiveMenu(item.label)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive
+                    ? "bg-indigo-50 text-indigo-700 font-bold"
+                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-semibold"
+                  }`}
+              >
+                <div className={`${isActive ? "text-indigo-600" : "text-gray-400"}`}>
+                  {item.icon}
+                </div>
+                <span>{item.label}</span>
+                {isActive && <div className="ml-auto w-2 h-2 rounded-full bg-indigo-600 shadow-sm shadow-indigo-400"></div>}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="p-5 border-t border-gray-100 bg-gray-50/50">
+          <button onClick={async () => { await logoutAdminApi(); navigate("/admin/login"); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white text-red-500 font-bold rounded-xl hover:bg-red-50 border border-gray-200 hover:border-red-100 transition shadow-sm">
+            <FaSignOutAlt /> Logout
+          </button>
         </div>
       </aside>
 
       {/* ========== MAIN CONTENT ========== */}
-      <div className="flex-1 flex flex-col">
+      <main className="flex-1 ml-[280px] flex flex-col min-h-screen">
 
-        {/* ========== NAVBAR ========== */}
-        <header className="h-20 bg-white shadow-md border-b border-gray-200 flex items-center justify-between px-8">
+        {/* Navbar */}
+        <header className="h-[80px] bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-gray-100 px-8 flex flex-row items-center justify-between shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
           <div>
-           <h1 className="text-2xl font-bold text-gray-800">
-  Welcome {admin?.name || "Admin"} 👋
-</h1>
-
-            <p className="text-sm text-gray-500">Manage buddy verifications efficiently</p>
+            <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
+              {activeMenu}
+            </h1>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <FaBell className="text-gray-600 text-xl cursor-pointer hover:text-purple-600 transition" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                3
-              </span>
+          <div className="flex items-center gap-5">
+            <div className="hidden md:flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 opacity-50 cursor-not-allowed">
+              <FaSearch className="text-gray-400 mr-2" size={14} />
+              <span className="text-sm text-gray-400 font-medium">Quick search cmd+k</span>
             </div>
 
-            <div className="flex items-center gap-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-full px-4 py-2">
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-800">
-  {admin?.name || "Admin"}
-</p>
+            <button className="relative p-2.5 text-gray-400 hover:text-gray-700 transition bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 rounded-full">
+              <FaBell size={18} />
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
 
-                <p className="text-xs text-gray-500">My Buddy</p>
+            <div className="w-px h-8 bg-gray-200"></div>
+
+            <div className="flex items-center gap-3 cursor-pointer p-1.5 pr-4 rounded-full hover:bg-gray-50 transition border border-transparent hover:border-gray-200">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-r from-gray-800 to-gray-900 shadow-md flex items-center justify-center text-white font-bold text-sm">
+                {admin?.name ? admin.name.charAt(0).toUpperCase() : "SA"}
               </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                {admin?.name ? admin.name.charAt(0).toUpperCase() : "A"}
+              <div className="text-left hidden md:block">
+                <p className="text-sm font-bold text-gray-800 leading-tight">{admin?.name || "Super Admin"}</p>
+                <p className="text-[11px] text-gray-500 font-semibold tracking-wide">ADMINISTRATOR</p>
               </div>
             </div>
           </div>
         </header>
 
-        {/* ========== STATS CARDS ========== */}
-        <div className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-2xl p-6 shadow-md border border-gray-200 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center text-white shadow-lg`}>
-                    {stat.icon}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-gray-800">{stat.value}</p>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 font-medium">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* ========== SEARCH & FILTER BAR ========== */}
-          <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-200 mb-6">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="relative flex-1 w-full">
-                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search buddy by name, email or ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-purple-50 border border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
-                />
-              </div>
-              <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all">
-                <FaFilter />
-                <span>Filter</span>
-              </button>
-            </div>
-          </div>
-
-          {/* ========== MAIN CONTENT ========== */}
-          <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-purple-100">
-              <h2 className="text-xl font-bold text-gray-800">
-                Buddy Verification Requests
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">Review and approve buddy applications</p>
-            </div>
-
-            {/* Buddy List */}
-            <div className="divide-y divide-purple-100">
-              {visibleBuddies.map((buddy, idx) => (
-                <div
-                  key={buddy._id}
-                 onClick={async () => {
-  const fullBuddy = await getBuddyById(buddy._id);
-  setSelectedBuddy(fullBuddy);
-}}
-
-                  className="p-5 cursor-pointer hover:bg-purple-50 transition-all duration-300 group"
-                  style={{
-                    animation: `fadeIn 0.3s ease-in-out ${idx * 0.1}s both`
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg group-hover:scale-110 transition-transform">
-                        {buddy.name ? buddy.name.charAt(0) : "?"}
-
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-800 group-hover:text-purple-600 transition">
-                          {buddy.name}
-                        </h3>
-                        <p className="text-sm text-gray-500">{buddy.email}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                     <span
-  className={`px-3 py-1 rounded-full text-xs font-medium ${
-    buddy.isVerified
-      ? "bg-green-100 text-green-700"
-      : "bg-orange-100 text-orange-700"
-  }`}
->
-  {buddy.isVerified ? "Verified" : "Pending"}
-</span>
-
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* ========== ENHANCED PAGINATION ========== */}
-            <div className="p-6 bg-gradient-to-r from-purple-50 to-pink-50 border-t border-purple-100">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  Showing Showing{" "}
-<span className="font-semibold text-gray-800">
-  {start + 1}
-</span>{" "}
-to{" "}
-<span className="font-semibold text-gray-800">
-  {Math.min(start + perPage, buddies.length)}
-</span>{" "}
-of{" "}
-<span className="font-semibold text-gray-800">
-  {buddies.length}
-</span>
-
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage(page - 1)}
-                    className="p-3 rounded-xl bg-white border border-purple-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-purple-50 hover:border-purple-400 transition-all shadow-sm hover:shadow-md"
-                  >
-                    <ChevronLeft size={20} className="text-purple-600" />
-                  </button>
-
-                  <div className="flex gap-2">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                      <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        className={`w-10 h-10 rounded-xl font-medium transition-all ${
-                          page === pageNum
-                            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-110"
-                            : "bg-white border border-purple-200 text-gray-600 hover:bg-purple-50 hover:border-purple-400"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    disabled={page === totalPages}
-                    onClick={() => setPage(page + 1)}
-                    className="p-3 rounded-xl bg-white border border-purple-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-purple-50 hover:border-purple-400 transition-all shadow-sm hover:shadow-md"
-                  >
-                    <ChevronRight size={20} className="text-purple-600" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Dynamic View */}
+        <div className="p-8 max-w-7xl mx-auto w-full flex-1">
+          {renderContent()}
         </div>
-      </div>
+      </main>
 
-      {/* ========== ENHANCED MODAL ========== */}
+      {/* ========== BUDDY REVIEW MODAL ========== */}
       {selectedBuddy && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedBuddy(null)}>
-          <div 
-            className="bg-white/95 backdrop-blur-xl w-full max-w-2xl rounded-3xl shadow-2xl relative max-h-[90vh] overflow-y-auto"
-            style={{
-              animation: "modalFadeIn 0.3s ease-out"
-            }}
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedBuddy(null)}>
+          <div
+            className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-modal-pop border border-white/20"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              onClick={() => setSelectedBuddy(null)}
-              className="absolute top-6 right-6 w-10 h-10 bg-red-50 hover:bg-red-100 rounded-full flex items-center justify-center transition-all hover:scale-110"
-            >
-              <X className="text-red-500" size={20} />
-            </button>
-
-            {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-8 text-white rounded-t-3xl">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center text-3xl font-bold shadow-lg">
-                 {selectedBuddy.name ? selectedBuddy.name.charAt(0) : "?"}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold">{selectedBuddy.name}</h3>
-                  <p className="text-purple-100 mt-1">Buddy Application Details</p>
-                </div>
+            {/* Modal Header */}
+            <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-md">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Application Review</h3>
+                <p className="text-sm text-gray-500 font-medium">Review the details submitted by the applicant</p>
               </div>
-            </div>
-
-            {/* Details */}
-            <div className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-start gap-3 p-4 bg-purple-50 rounded-xl">
-                  <Mail className="text-purple-600 mt-1" size={20} />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Email Address</p>
-                    <p className="text-sm font-semibold text-gray-800">{selectedBuddy.email}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-4 bg-pink-50 rounded-xl">
-                  <Phone className="text-pink-600 mt-1" size={20} />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Mobile Number</p>
-                    <p className="text-sm font-semibold text-gray-800">{selectedBuddy.mobile}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl">
-                  <MapPin className="text-blue-600 mt-1" size={20} />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Address</p>
-                    <p className="text-sm font-semibold text-gray-800">{selectedBuddy.permanentAddress}
-</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-4 bg-green-50 rounded-xl">
-                  <CreditCard className="text-green-600 mt-1" size={20} />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">PAN Number</p>
-                    <p className="text-sm font-semibold text-gray-800">{selectedBuddy.panNumber}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-4 bg-orange-50 rounded-xl">
-                  <CreditCard className="text-orange-600 mt-1" size={20} />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Aadhaar Number</p>
-                    <p className="text-sm font-semibold text-gray-800">{selectedBuddy.aadhaarNumber}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-4 bg-indigo-50 rounded-xl">
-                  <Building className="text-indigo-600 mt-1" size={20} />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Bank Name</p>
-                    <p className="text-sm font-semibold text-gray-800">{selectedBuddy.bankName}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                <p className="text-xs text-gray-500 font-medium">Banking Details</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500">Account Number</p>
-                    <p className="text-sm font-semibold text-gray-800">{selectedBuddy.accountNumber}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">IFSC Code</p>
-                    <p className="text-sm font-semibold text-gray-800">{selectedBuddy.ifscCode}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="p-8 pt-0 flex gap-4">
-              <button 
-                onClick={async () => {
-  const res = await verifyBuddy(selectedBuddy._id);
-
-  if (res) {
-    alert(`Buddy ${selectedBuddy.name} verified successfully ✅`);
-
-    // 🔁 UI refresh
-    const updatedBuddies = await getAllBuddies();
-    setBuddies(updatedBuddies);
-
-    setSelectedBuddy(null);
-  }
-}}
-
-                className="flex-1 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
-              >
-                <CheckCircle size={20} />
-                Accept Buddy
+              <button onClick={() => setSelectedBuddy(null)} className="w-10 h-10 bg-white border border-gray-200 text-gray-500 rounded-full flex items-center justify-center hover:bg-gray-100 hover:text-gray-800 hover:border-gray-300 transition shadow-sm">
+                <X size={20} />
               </button>
-              <button 
-                onClick={() => {
-                  alert(`Buddy ${selectedBuddy.name} rejected!`);
-                  setSelectedBuddy(null);
-                }}
-                className="flex-1 py-4 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto space-y-8 flex-1 custom-scrollbar">
+
+              {/* Profile Bar */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-2xl border border-indigo-100/50">
+                <div className="w-20 h-20 bg-white text-indigo-600 rounded-2xl flex items-center justify-center text-3xl font-bold shadow-sm border border-indigo-100">
+                  {selectedBuddy.name ? selectedBuddy.name.charAt(0) : "U"}
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-1">{selectedBuddy.name}</h2>
+                  <div className="flex flex-wrap gap-4 mt-2">
+                    <span className="flex items-center gap-1.5 text-sm text-gray-600 font-medium bg-white px-3 py-1 rounded-lg border border-indigo-100/50 shadow-sm"><Mail size={14} className="text-indigo-500" /> {selectedBuddy.email}</span>
+                    <span className="flex items-center gap-1.5 text-sm text-gray-600 font-medium bg-white px-3 py-1 rounded-lg border border-indigo-100/50 shadow-sm"><Phone size={14} className="text-indigo-500" /> {selectedBuddy.mobile || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* ID Details */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-8 h-px bg-indigo-200 inline-block"></span> Identity Details
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl border border-gray-100 flex justify-between items-center transition hover:border-indigo-200 hover:shadow-sm">
+                      <span className="text-sm font-medium text-gray-500">PAN Number</span>
+                      <span className="text-sm font-bold text-gray-800">{selectedBuddy.panNumber || 'N/A'}</span>
+                    </div>
+                    <div className="p-4 rounded-xl border border-gray-100 flex justify-between items-center transition hover:border-indigo-200 hover:shadow-sm">
+                      <span className="text-sm font-medium text-gray-500">Aadhaar No.</span>
+                      <span className="text-sm font-bold text-gray-800">{selectedBuddy.aadhaarNumber || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Details */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-8 h-px bg-indigo-200 inline-block"></span> Banking Details
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl border border-gray-100 flex justify-between items-center transition hover:border-indigo-200 hover:shadow-sm">
+                      <span className="text-sm font-medium text-gray-500">Bank Name</span>
+                      <span className="text-sm font-bold text-gray-800">{selectedBuddy.bankName || 'N/A'}</span>
+                    </div>
+                    <div className="p-4 rounded-xl border border-gray-100 flex justify-between items-center transition hover:border-indigo-200 hover:shadow-sm">
+                      <span className="text-sm font-medium text-gray-500">Account No.</span>
+                      <span className="text-sm font-bold text-gray-800">{selectedBuddy.accountNumber || 'N/A'}</span>
+                    </div>
+                    <div className="p-4 rounded-xl border border-gray-100 flex justify-between items-center transition hover:border-indigo-200 hover:shadow-sm">
+                      <span className="text-sm font-medium text-gray-500">IFSC Code</span>
+                      <span className="text-sm font-bold text-gray-800">{selectedBuddy.ifscCode || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Address Info */}
+                <div className="md:col-span-2 space-y-4">
+                  <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-8 h-px bg-indigo-200 inline-block"></span> Location
+                  </h4>
+                  <div className="p-5 rounded-xl border border-gray-100 flex items-start gap-4 transition hover:border-indigo-200 hover:shadow-sm bg-gray-50/50">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                      <MapPin size={18} />
+                    </div>
+                    <div className="flex flex-col justify-center min-h-[40px]">
+                      <p className="text-sm font-semibold text-gray-800 leading-relaxed">{selectedBuddy.permanentAddress || 'Address not provided'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer actions */}
+            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50/80 backdrop-blur-md flex gap-4">
+              <button
+                onClick={() => setSelectedBuddy(null)}
+                className="px-6 py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold shadow-sm hover:bg-gray-50 hover:border-gray-300 transition flex-1"
               >
-                <XCircle size={20} />
-                Reject
+                Close View
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await verifyBuddy(selectedBuddy._id);
+                    if (res) {
+                      alert(`Buddy ${selectedBuddy.name} verified successfully.`);
+                      const updatedBuddies = await getAllBuddies();
+                      setBuddies(updatedBuddies);
+                      setSelectedBuddy(null);
+                    }
+                  } catch (e) { }
+                }}
+                className="px-6 py-3.5 bg-emerald-500 text-white rounded-xl font-bold shadow-md shadow-emerald-500/30 hover:bg-emerald-600 hover:shadow-lg transition flex-1 flex justify-center items-center gap-2"
+              >
+                <CheckCircle size={18} /> Approve Applicant
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes modalFadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
     </div>
   );
 };

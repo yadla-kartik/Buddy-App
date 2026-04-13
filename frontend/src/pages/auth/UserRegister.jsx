@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { registerUser } from "../../services/authService";
+import { useState, useEffect } from "react";
+import { registerUser, getMe } from "../../services/authService";
 import buddyImage from "../../assets/buddyParent.png";
 import { useNavigate } from "react-router-dom";
 import SuccessPopup from "../../components/common/SuccessPopup";
@@ -8,6 +8,16 @@ const UserRegister = () => {
   const navigate = useNavigate();
   const [showPopup, setShowPopup] = useState(false);
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const res = await getMe();
+      if (res?.user) {
+        navigate("/dashboard");
+      }
+    };
+    checkAuth();
+  }, [navigate]);
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -15,14 +25,25 @@ const UserRegister = () => {
     password: "",
     confirmPassword: "",
     city: "",
-    fatherName: "",
-    fatherMobile: "",
-    motherName: "",
-    motherMobile: "",
+    emergencyContact: "",
+    alternateContact: "",
   });
+  const [sameAsMobile, setSameAsMobile] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const newFormData = { ...formData, [e.target.name]: e.target.value };
+    if (e.target.name === "mobile" && sameAsMobile) {
+      newFormData.emergencyContact = e.target.value;
+    }
+    setFormData(newFormData);
+  };
+
+  const handleSameAsMobile = (e) => {
+    const checked = e.target.checked;
+    setSameAsMobile(checked);
+    if (checked) {
+      setFormData(prev => ({ ...prev, emergencyContact: prev.mobile }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -33,6 +54,7 @@ const UserRegister = () => {
     }
     const res = await registerUser(formData);
     if (res?.message === "User registered successfully") {
+      localStorage.setItem("userData", JSON.stringify(res.user));
       setShowPopup(true);
     } else if (res?.message) {
       alert(res.message);
@@ -108,6 +130,20 @@ const UserRegister = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className={"block text-xs font-semibold text-gray-500 uppercase tracking-wide"}>Emergency No. <span className="text-red-400">*</span></label>
+                    <label className="text-[10px] text-gray-500 flex items-center gap-1 cursor-pointer uppercase tracking-wide font-semibold">
+                      <input type="checkbox" checked={sameAsMobile} onChange={handleSameAsMobile} className="accent-[#6A2AFF]" /> Same as Mobile
+                    </label>
+                  </div>
+                  <input name="emergencyContact" value={formData.emergencyContact} onChange={handleChange} placeholder="10-digit number" maxLength={10} className={inputCls} required disabled={sameAsMobile} />
+                </div>
+                <div>
+                  <label className={labelCls}>Alternate No. <span className="text-red-400">*</span></label>
+                  <input name="alternateContact" onChange={handleChange} placeholder="10-digit number" maxLength={10} className={inputCls} required />
+                </div>
+              </div>              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Password <span className="text-red-400">*</span></label>
                   <input type="password" name="password" onChange={handleChange} placeholder="Min. 8 characters" className={inputCls} required />

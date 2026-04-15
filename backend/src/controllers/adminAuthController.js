@@ -52,6 +52,11 @@ exports.getAdminMe = async (req, res) => {
 
 
 exports.adminLogout = (req, res) => {
-  res.clearCookie("adminToken", { httpOnly: true, sameSite: "lax", secure: false });
+  const cookieOptions = getCookieOptions();
+  res.clearCookie("adminToken", {
+    httpOnly: cookieOptions.httpOnly,
+    sameSite: cookieOptions.sameSite,
+    secure: cookieOptions.secure,
+  });
   res.status(200).json({ message: "Admin logged out successfully" });
 };

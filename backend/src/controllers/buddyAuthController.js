@@ -1,6 +1,7 @@
 const Buddy = require("../models/Buddy");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const getCookieOptions = require("../utils/cookieOptions");
 const { ADMIN_ROOM } = require("../socket");
 
 const signBuddyToken = (buddy) =>
@@ -63,12 +64,7 @@ exports.signupBuddy = async (req, res) => {
     });
 
     const token = signBuddyToken(newBuddy);
-    res.cookie("buddyToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("buddyToken", token, getCookieOptions());
 
     return res.status(201).json({
       message: "Buddy signup successful",
@@ -220,12 +216,7 @@ exports.loginBuddy = async (req, res) => {
     }
 
     const token = signBuddyToken(buddy);
-    res.cookie("buddyToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("buddyToken", token, getCookieOptions());
 
     return res.status(200).json({
       message: "Login successful",
@@ -291,6 +282,11 @@ exports.getBuddyStatus = async (req, res) => {
 };
 
 exports.logoutBuddy = (req, res) => {
-  res.clearCookie("buddyToken", { httpOnly: true, sameSite: "lax", secure: false });
+  const cookieOptions = getCookieOptions();
+  res.clearCookie("buddyToken", {
+    httpOnly: cookieOptions.httpOnly,
+    sameSite: cookieOptions.sameSite,
+    secure: cookieOptions.secure,
+  });
   res.status(200).json({ message: "Buddy logged out successfully" });
 };

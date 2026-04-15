@@ -13,20 +13,6 @@ export const adminLogin = async (data) => {
   }
 };
 
-// ✅ ADMIN REGISTER
-export const adminRegister = async (data) => {
-  try {
-    const res = await api.post("/admin/register", data, {
-      withCredentials: true, // cookie set hoga
-    });
-    return res.data;
-  } catch (err) {
-    console.error("Admin Register Error:", err);
-    return err.response?.data || { message: "Admin registration failed" };
-  }
-};
-
-
 export const getAdminMe = async () => {
   try {
     const res = await api.get("/admin/me", {

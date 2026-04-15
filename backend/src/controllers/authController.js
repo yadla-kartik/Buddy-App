@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const getCookieOptions = require("../utils/cookieOptions");
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -14,7 +15,6 @@ const generateToken = (user) => {
     { expiresIn: "7d" }
   );
 };
-
 
 // LOGIN
 exports.login = async (req, res) => {
@@ -35,15 +35,7 @@ exports.login = async (req, res) => {
     }
 
     const token = generateToken(user);
-
-    // 🍪 COOKIE SET
-    res.cookie("userToken", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false, // prod me true
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
+    res.cookie("userToken", token, getCookieOptions());
 
     return res.status(200).json({
       message: "Login successful",
@@ -51,15 +43,15 @@ exports.login = async (req, res) => {
         id: user._id,
         name: user.fullName,
         email: user.email,
-        mobile: user.mobile
-      }
+        mobile: user.mobile,
+      },
     });
   } catch (err) {
     return res.status(500).json({ message: "Server error" });
   }
 };
 
-//  REGISTER
+// REGISTER
 exports.register = async (req, res) => {
   try {
     const userExists = await User.findOne({
@@ -82,47 +74,47 @@ exports.register = async (req, res) => {
       password: hashedPassword,
     });
 
-const token = generateToken(user);
+    const token = generateToken(user);
+    res.cookie("userToken", token, getCookieOptions());
 
-    // 🍪 COOKIE
-
-    res.cookie("userToken", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false, // localhost
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-
-
-    res.status(201).json({
+    return res.status(201).json({
       message: "User registered successfully",
       role: user.role,
       user: {
         id: user._id,
         name: user.fullName,
         email: user.email,
-        mobile: user.mobile
-      }
+        mobile: user.mobile,
+      },
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
-
 
 exports.getMe = async (req, res) => {
   try {
     const token = req.cookies.userToken;
-    if (!token) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).select("-password");
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       user,
     });
   } catch (error) {
-    res.status(401).json({ success: false, message: "Invalid token" });
+    return res.status(401).json({
+      success: false,
+      message: "Invalid token",
+    });
   }
 };
 
@@ -130,18 +122,17 @@ exports.getMe = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
-    // get full user object including hashed password
-    const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // verify current password
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Incorrect current password" });
     }
 
-    // save new password
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
@@ -154,10 +145,21 @@ exports.changePassword = async (req, res) => {
 // UPDATE PROFILE
 exports.updateProfile = async (req, res) => {
   try {
-    const { fullName, email, mobile, city, state, address, emergencyContact, alternateContact } = req.body;
-    
+    const {
+      fullName,
+      email,
+      mobile,
+      city,
+      state,
+      address,
+      emergencyContact,
+      alternateContact,
+    } = req.body;
+
     const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     if (fullName) user.fullName = fullName;
     if (email) user.email = email;
@@ -166,19 +168,29 @@ exports.updateProfile = async (req, res) => {
     if (state) user.state = state;
     if (address) user.address = address;
     if (emergencyContact) user.emergencyContact = emergencyContact;
-    if (alternateContact !== undefined) user.alternateContact = alternateContact;
+    if (alternateContact !== undefined) {
+      user.alternateContact = alternateContact;
+    }
 
     await user.save();
 
-    return res.status(200).json({ message: "Profile updated successfully", user });
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user,
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
 
-
-
 exports.logout = (req, res) => {
-  res.clearCookie("userToken", { httpOnly: true, sameSite: "lax", secure: false });
-  res.status(200).json({ message: "Logged out successfully" });
+  const cookieOptions = getCookieOptions();
+
+  res.clearCookie("userToken", {
+    httpOnly: cookieOptions.httpOnly,
+    sameSite: cookieOptions.sameSite,
+    secure: cookieOptions.secure,
+  });
+
+  return res.status(200).json({ message: "Logged out successfully" });
 };

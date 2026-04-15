@@ -1,6 +1,5 @@
 import api from "./api";
 
-// ✅ GET ALL BUDDIES (ONLY NAME + EMAIL)
 export const getAllBuddies = async () => {
   try {
     const res = await api.get("/admin/buddies", {
@@ -13,7 +12,6 @@ export const getAllBuddies = async () => {
   }
 };
 
-// ✅ GET SINGLE BUDDY (FULL DATA FOR POPUP)
 export const getBuddyById = async (id) => {
   try {
     const res = await api.get(`/admin/buddies/${id}`, {
@@ -26,7 +24,6 @@ export const getBuddyById = async (id) => {
   }
 };
 
-// ✅ VERIFY BUDDY (ACCEPT)
 export const verifyBuddy = async (id) => {
   try {
     const res = await api.patch(
@@ -39,6 +36,22 @@ export const verifyBuddy = async (id) => {
     return res.data;
   } catch (err) {
     console.error("Verify buddy error:", err);
+    return null;
+  }
+};
+
+export const rejectBuddy = async (id, reason = "") => {
+  try {
+    const res = await api.patch(
+      `/admin/buddies/${id}/reject`,
+      { reason },
+      {
+        withCredentials: true,
+      }
+    );
+    return res.data;
+  } catch (err) {
+    console.error("Reject buddy error:", err);
     return null;
   }
 };

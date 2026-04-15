@@ -7,12 +7,12 @@ const CreateNewTask = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [step, setStep] = useState(1); // 1 = Parent, 2 = Task, 3 = Schedule
 
   const [formData, setFormData] = useState({
     parentName: "",
     parentMobile: "",
     parentCurrentLocation: "",
+    taskCity: "",
     taskLocationType: "",
     taskLocationDescription: "",
     taskType: "",
@@ -33,11 +33,12 @@ const CreateNewTask = () => {
   };
 
   const validateForm = () => {
-    const { parentName, parentMobile, parentCurrentLocation, taskLocationType, taskType, taskDescription } = formData;
+    const { parentName, parentMobile, parentCurrentLocation, taskCity, taskLocationType, taskType, taskDescription } = formData;
     const nextErrors = {};
     if (!parentName.trim()) nextErrors.parentName = "Parent name is required";
     if (!parentMobile.trim() || !/^\d{10}$/.test(parentMobile)) nextErrors.parentMobile = "Valid 10-digit number required";
     if (!parentCurrentLocation.trim()) nextErrors.parentCurrentLocation = "Parent location is required";
+    if (!taskCity.trim()) nextErrors.taskCity = "Task city is required";
     if (!taskLocationType) nextErrors.taskLocationType = "Please select location type";
     if (!taskType) nextErrors.taskType = "Please select task type";
     if (!taskDescription.trim()) nextErrors.taskDescription = "Task description is required";
@@ -166,6 +167,18 @@ const CreateNewTask = () => {
               <label className={labelCls}>Parent Current Location <span className="text-red-400">*</span></label>
               <textarea name="parentCurrentLocation" value={formData.parentCurrentLocation} onChange={handleChange} placeholder="e.g. 12, MG Road, Raipur, Chhattisgarh" rows="2" className={`${inputCls} resize-none`} />
               {errors.parentCurrentLocation && <p className={errorCls}>{errors.parentCurrentLocation}</p>}
+            </div>
+
+            <div className="mt-4">
+              <label className={labelCls}>Task City <span className="text-red-400">*</span></label>
+              <input
+                name="taskCity"
+                value={formData.taskCity}
+                onChange={handleChange}
+                placeholder="e.g. Raipur"
+                className={inputCls}
+              />
+              {errors.taskCity && <p className={errorCls}>{errors.taskCity}</p>}
             </div>
           </div>
 

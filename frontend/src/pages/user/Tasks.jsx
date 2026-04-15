@@ -11,9 +11,10 @@ const statusConfig = {
 }
 
 const FILTERS = ["All", "Pending", "In Progress", "Completed"]
+const getTaskId = (task) => String(task?._id || task?.id || "")
 
 const Tasks = () => {
-  const { user } = useOutletContext()
+  const { taskEvent } = useOutletContext()
   const [tasks, setTasks]     = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter]   = useState("All")
@@ -32,6 +33,23 @@ const Tasks = () => {
     }
     fetchTasks()
   }, [])
+
+  useEffect(() => {
+    const incomingTask = taskEvent?.task
+    if (!incomingTask) return
+
+    const incomingId = getTaskId(incomingTask)
+    if (!incomingId) return
+
+    setTasks((prev) => {
+      const index = prev.findIndex((item) => getTaskId(item) === incomingId)
+      if (index === -1) return [incomingTask, ...prev]
+
+      const next = [...prev]
+      next[index] = { ...next[index], ...incomingTask }
+      return next
+    })
+  }, [taskEvent])
 
   const filtered = tasks.filter((t) => {
     if (filter === "All") return true

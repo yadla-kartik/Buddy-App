@@ -6,15 +6,12 @@ const {
   getAllBuddiesForAdmin,
   getSingleBuddyForAdmin,
   verifyBuddy,
+  rejectBuddy,
 } = require("../controllers/adminBuddyController");
 
-// ✅ LIST (name + email)
 router.get("/buddies", adminProtect, getAllBuddiesForAdmin);
-
-// ✅ SINGLE (full data)
 router.get("/buddies/:id", adminProtect, getSingleBuddyForAdmin);
-
-// ✅ VERIFY
 router.patch("/buddies/:id/verify", adminProtect, verifyBuddy);
+router.patch("/buddies/:id/reject", adminProtect, rejectBuddy);
 
 module.exports = router;

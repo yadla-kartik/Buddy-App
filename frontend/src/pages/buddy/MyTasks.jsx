@@ -1,308 +1,383 @@
-import { useState } from "react";
-import { 
-  CheckCircle2, Clock, Calendar, MapPin, ChevronRight, Filter, Search, 
-  ClipboardList, User, XCircle, Phone, Navigation, AlertCircle, HeartPulse, FileText 
+import { useEffect, useMemo, useState } from "react";
+import {
+  CheckCircle2,
+  Clock,
+  Search,
+  User,
+  MapPin,
+  Phone,
+  ClipboardList,
 } from "lucide-react";
-import BuddyNav from "./BuddyNav"; 
+import BuddyNav from "./BuddyNav";
+import { getBuddyStatus } from "../../services/buddyAuthService";
+import {
+  acceptTask,
+  completeTask,
+  getBuddyTasks,
+  getPendingTasks,
+  rejectTask,
+} from "../../services/taskService";
+import { connectBuddySocket, disconnectBuddySocket } from "../../services/socketService";
+import { useNavigate } from "react-router-dom";
+
+const getTaskId = (task) => String(task?._id || task?.id || "");
+
+const statusConfig = {
+  pending: { label: "Pending", className: "bg-amber-50 text-amber-600" },
+  accepted: { label: "Accepted", className: "bg-blue-50 text-blue-600" },
+  in_progress: { label: "In Progress", className: "bg-orange-50 text-orange-600" },
+  completed: { label: "Completed", className: "bg-emerald-50 text-emerald-600" },
+  cancelled: { label: "Cancelled", className: "bg-gray-100 text-gray-600" },
+};
+
+const detectBuddyStatus = (buddy) => {
+  if (!buddy) return "unregistered";
+  if (buddy.verificationStatus === "rejected") return "rejected";
+  if (buddy.verificationStatus === "approved" || buddy.isVerified) return "welcome";
+  if (buddy.verificationStatus === "pending" || buddy.registrationCompleted) return "pending";
+  return "unregistered";
+};
 
 export default function MyTasks() {
-  const [activeTab, setActiveTab] = useState("current");
+  const navigate = useNavigate();
+  const [buddy, setBuddy] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("available");
   const [searchQuery, setSearchQuery] = useState("");
+  const [availableTasks, setAvailableTasks] = useState([]);
+  const [myTasks, setMyTasks] = useState([]);
+  const [liveNotice, setLiveNotice] = useState("");
 
-  const buddy = {
-    name: "Rahul Sharma",
-    status: "welcome", 
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const res = await getBuddyStatus();
+        if (!res?.buddy) {
+          navigate("/buddy/login");
+          return;
+        }
+
+        setBuddy(res.buddy);
+      } catch (error) {
+        console.error("Failed to load buddy status:", error);
+        navigate("/buddy/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
+  }, [navigate]);
+
+  const refreshTasks = async () => {
+    const [pendingRes, myRes] = await Promise.all([getPendingTasks(), getBuddyTasks()]);
+    setAvailableTasks(pendingRes?.tasks || []);
+    setMyTasks(myRes?.tasks || []);
   };
 
-  // Detailed mock data for the SINGLE current task
-  const currentTask = {
-    id: 6, 
-    name: "Hospital escort for Mr. Patel", 
-    date: "10 April, 2025", 
-    time: "10:00 AM - 1:00 PM", 
-    location: "Lilavati Hospital, A-791, Bandra Reclamation, Bandra West, Mumbai, 400050", 
-    type: "Hospital Visit", 
-    status: "in-progress",
-    elderly: {
-      name: "Mr. Raj Patel",
-      age: 72,
-      bloodGroup: "O+",
-      phone: "+91 98765 43210",
-      emergencyContact: "+91 91234 56789"
-    },
-    instructions: "Please arrive 15 minutes early. Mr. Patel will be waiting in the ground floor lobby. Wheelchair assistance is required from the hospital entrance to the Cardiology department. Collect medical file from his desk before leaving."
-  };
+  useEffect(() => {
+    if (!buddy?.id) return;
+    refreshTasks();
+  }, [buddy?.id]);
 
-  // Lists for other tabs
-  const completedTasks = [
-    { id: 1, name: "Campus orientation support", date: "Apr 6", time: "11:00 AM", location: "Main Campus", type: "Orientation", assignee: "College Admin", status: "completed" },
-    { id: 2, name: "Mentorship session — 1hr", date: "Apr 3", time: "2:00 PM", location: "Library", type: "Mentorship", assignee: "Freshmen Group", status: "completed" },
-  ];
+  useEffect(() => {
+    if (!buddy?.id) return undefined;
 
-  const cancelledTasks = [
-    { id: 5, name: "Doctor appointment accompaniment", date: "Apr 8", time: "11:00 AM", location: "Asian Heart Institute", type: "Hospital Visit", assignee: "Mrs. Gupta", status: "cancelled" }
-  ];
+    const socket = connectBuddySocket(buddy.id);
 
-  const displayedListTasks = activeTab === "completed" ? completedTasks : cancelledTasks;
-  
-  const filteredListTasks = displayedListTasks.filter(task => 
-    task.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    task.type.toLowerCase().includes(searchQuery.toLowerCase())
+    const pushNotice = (message) => {
+      if (!message) return;
+      setLiveNotice(message);
+      setTimeout(() => {
+        setLiveNotice((prev) => (prev === message ? "" : prev));
+      }, 4000);
+    };
+
+    const upsertMyTask = (incomingTask) => {
+      if (!incomingTask) return;
+      const incomingId = getTaskId(incomingTask);
+      if (!incomingId) return;
+
+      setMyTasks((prev) => {
+        const index = prev.findIndex((item) => getTaskId(item) === incomingId);
+        if (index === -1) return [incomingTask, ...prev];
+
+        const next = [...prev];
+        next[index] = { ...next[index], ...incomingTask };
+        return next;
+      });
+    };
+
+    const onTaskNewForCity = (payload) => {
+      const incomingTask = payload?.task;
+      if (!incomingTask) return;
+
+      setAvailableTasks((prev) => {
+        const incomingId = getTaskId(incomingTask);
+        if (!incomingId) return prev;
+        if (prev.some((item) => getTaskId(item) === incomingId)) return prev;
+        return [incomingTask, ...prev];
+      });
+
+      pushNotice(payload?.message || "New task available in your city");
+    };
+
+    const onTaskUpdatedForCity = (payload) => {
+      const targetTaskId = String(payload?.taskId || "");
+      if (!targetTaskId) return;
+
+      setAvailableTasks((prev) => prev.filter((item) => getTaskId(item) !== targetTaskId));
+    };
+
+    const onTaskAssignedToBuddy = (payload) => {
+      const task = payload?.task;
+      if (task) {
+        upsertMyTask(task);
+        setAvailableTasks((prev) => prev.filter((item) => getTaskId(item) !== getTaskId(task)));
+      }
+      pushNotice(payload?.message || "Task assigned to you");
+    };
+
+    const onTaskCompletedByBuddy = (payload) => {
+      if (payload?.task) {
+        upsertMyTask(payload.task);
+      }
+      pushNotice(payload?.message || "Task marked completed");
+    };
+
+    const onTaskRejectedByBuddy = (payload) => {
+      const targetTaskId = String(payload?.taskId || "");
+      if (targetTaskId) {
+        setAvailableTasks((prev) => prev.filter((item) => getTaskId(item) !== targetTaskId));
+      }
+      pushNotice(payload?.message || "Task removed from your list");
+    };
+
+    socket.on("task:new_for_city", onTaskNewForCity);
+    socket.on("task:updated_for_city", onTaskUpdatedForCity);
+    socket.on("task:assigned_to_buddy", onTaskAssignedToBuddy);
+    socket.on("task:completed_by_buddy", onTaskCompletedByBuddy);
+    socket.on("task:rejected_by_buddy", onTaskRejectedByBuddy);
+
+    return () => {
+      socket.off("task:new_for_city", onTaskNewForCity);
+      socket.off("task:updated_for_city", onTaskUpdatedForCity);
+      socket.off("task:assigned_to_buddy", onTaskAssignedToBuddy);
+      socket.off("task:completed_by_buddy", onTaskCompletedByBuddy);
+      socket.off("task:rejected_by_buddy", onTaskRejectedByBuddy);
+      disconnectBuddySocket();
+    };
+  }, [buddy?.id]);
+
+  const availableFiltered = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return availableTasks;
+
+    return availableTasks.filter((task) => {
+      const text = [
+        task.taskDescription,
+        task.parentName,
+        task.parentCurrentLocation,
+        task.taskCity,
+        task.userName,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return text.includes(query);
+    });
+  }, [availableTasks, searchQuery]);
+
+  const assignedTasks = useMemo(
+    () => myTasks.filter((task) => ["accepted", "in_progress"].includes(task.status)),
+    [myTasks]
   );
+
+  const completedTasks = useMemo(
+    () => myTasks.filter((task) => task.status === "completed"),
+    [myTasks]
+  );
+
+  const status = detectBuddyStatus(buddy);
+
+  const handleAccept = async (taskId) => {
+    const res = await acceptTask(taskId);
+    if (!res?.task) {
+      alert(res?.message || "Unable to accept task");
+      return;
+    }
+
+    setAvailableTasks((prev) => prev.filter((item) => getTaskId(item) !== taskId));
+    setMyTasks((prev) => [res.task, ...prev.filter((item) => getTaskId(item) !== taskId)]);
+    setLiveNotice(res.message || "Task accepted successfully");
+  };
+
+  const handleReject = async (taskId) => {
+    const res = await rejectTask(taskId);
+    if (!res) return;
+
+    setAvailableTasks((prev) => prev.filter((item) => getTaskId(item) !== taskId));
+    setLiveNotice(res.message || "Task rejected");
+  };
+
+  const handleComplete = async (taskId) => {
+    const res = await completeTask(taskId);
+    if (!res?.task) {
+      alert(res?.message || "Unable to complete task");
+      return;
+    }
+
+    setMyTasks((prev) =>
+      prev.map((item) => (getTaskId(item) === taskId ? { ...item, ...res.task } : item))
+    );
+    setLiveNotice(res.message || "Task completed");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f8fc] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#6A2AFF] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!buddy || status !== "welcome") {
+    return (
+      <div className="min-h-screen bg-[#f7f8fc] font-[Poppins,sans-serif] flex flex-col">
+        <BuddyNav buddy={buddy} status={status} unreadCount={0} />
+        <div className="max-w-4xl mx-auto w-full p-8">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-700 font-semibold">
+            Tasks are available only after verification approval.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const activeList =
+    activeTab === "available"
+      ? availableFiltered
+      : activeTab === "assigned"
+      ? assignedTasks
+      : completedTasks;
 
   return (
     <div className="min-h-screen bg-[#f7f8fc] font-[Poppins,sans-serif] flex flex-col">
-      <BuddyNav buddy={buddy} status={buddy.status} unreadCount={2} />
+      <BuddyNav buddy={buddy} status={status} unreadCount={liveNotice ? 1 : 0} />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto flex flex-col gap-6">
-        
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-          
-          {activeTab !== "current" && (
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                <input 
-                  type="text" 
-                  placeholder="Search tasks..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#6A2AFF] focus:ring-1 focus:ring-[#6A2AFF]/20 transition-all w-full sm:w-64 bg-white"
-                />
-              </div>
-              <button className="flex items-center justify-center p-2.5 rounded-xl border border-gray-200 bg-white text-gray-600 hover:text-[#6A2AFF] hover:border-[#6A2AFF] transition-all shadow-sm">
-                <Filter size={18} />
+      <main className="max-w-5xl w-full mx-auto p-6 md:p-8">
+        {liveNotice ? (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+            {liveNotice}
+          </div>
+        ) : null}
+
+        <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex gap-2">
+            {["available", "assigned", "completed"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === tab
+                    ? "bg-gradient-to-r from-[#6A2AFF] to-[#D116A8] text-white shadow-md"
+                    : "bg-white text-gray-600 border border-gray-200"
+                }`}
+              >
+                {tab === "available"
+                  ? `Available (${availableTasks.length})`
+                  : tab === "assigned"
+                  ? `My Active (${assignedTasks.length})`
+                  : `Completed (${completedTasks.length})`}
               </button>
-            </div>
-          )}
+            ))}
+          </div>
+
+          <div className="relative w-full md:w-72">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks"
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#6A2AFF]"
+            />
+          </div>
         </div>
 
-        {/* ── Tabs ── */}
-        <div className="flex gap-2 border-b border-gray-200 flex-wrap">
-          <button 
-            onClick={() => setActiveTab("current")}
-            className={`px-5 py-3 text-sm font-semibold transition-all relative ${
-              activeTab === "current" ? "text-[#6A2AFF]" : "text-gray-500 hover:text-gray-800"
-            }`}
-          >
-            Current Task
-            <span className="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-[10px]">1</span>
-            {activeTab === "current" && (
-              <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-gradient-to-r from-[#6A2AFF] to-[#D116A8] rounded-t-full"></span>
-            )}
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab("completed")}
-            className={`px-5 py-3 text-sm font-semibold transition-all relative ${
-              activeTab === "completed" ? "text-[#D116A8]" : "text-gray-500 hover:text-gray-800"
-            }`}
-          >
-            Completed
-            <span className="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-[10px]">{completedTasks.length}</span>
-            {activeTab === "completed" && (
-              <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-gradient-to-r from-[#6A2AFF] to-[#D116A8] rounded-t-full"></span>
-            )}
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab("cancelled")}
-            className={`px-5 py-3 text-sm font-semibold transition-all relative ${
-              activeTab === "cancelled" ? "text-rose-500" : "text-gray-500 hover:text-gray-800"
-            }`}
-          >
-            Cancelled
-            <span className="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-[10px]">{cancelledTasks.length}</span>
-            {activeTab === "cancelled" && (
-              <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-rose-500 rounded-t-full"></span>
-            )}
-          </button>
-        </div>
+        {activeList.length === 0 ? (
+          <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+            <ClipboardList size={38} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-sm text-gray-500 font-medium">No tasks found in this section.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {activeList.map((task) => {
+              const taskId = getTaskId(task);
+              const st = statusConfig[task.status] || statusConfig.pending;
 
-        {/* ── Content View ── */}
-        <div className="pb-12 mt-2">
-          
-          {/* DETAILED CURRENT TASK VIEW */}
-          {activeTab === "current" && (
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-md overflow-hidden">
-              
-              {/* Top Banner indicating status */}
-              <div className="bg-purple-50 px-8 py-4 border-b border-purple-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#6A2AFF] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#6A2AFF]"></span>
-                  </span>
-                  <span className="text-sm font-bold text-[#6A2AFF] uppercase tracking-widest">Active Mission</span>
-                </div>
-                <div className="text-xs font-semibold bg-white border border-purple-200 text-gray-700 px-3 py-1 rounded-full shadow-sm">
-                  {currentTask.type}
-                </div>
-              </div>
-
-              {/* Task Details Content */}
-              <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
-                
-                {/* Left Column: Task Core Details */}
-                <div className="flex flex-col gap-8">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-4">{currentTask.name}</h2>
-                    
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
-                          <Calendar size={18} className="text-gray-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Date & Time</p>
-                          <p className="text-base font-bold text-gray-900">{currentTask.date}</p>
-                          <p className="text-sm text-gray-600">{currentTask.time}</p>
-                        </div>
+              return (
+                <div key={taskId} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <h3 className="text-base font-bold text-gray-900">{task.taskDescription}</h3>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${st.className}`}>
+                          <Clock size={12} /> {st.label}
+                        </span>
+                        <span className="inline-flex rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-600">
+                          {task.taskType}
+                        </span>
                       </div>
-                      
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
-                          <MapPin size={18} className="text-orange-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Location</p>
-                          <p className="text-sm font-semibold text-gray-900 leading-relaxed">{currentTask.location}</p>
-                          <button className="text-xs font-bold text-[#6A2AFF] mt-1 flex items-center gap-1 hover:underline">
-                            <Navigation size={12} /> Get Directions
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                        <p className="flex items-center gap-2"><User size={14} /> Parent: {task.parentName}</p>
+                        <p className="flex items-center gap-2"><Phone size={14} /> Parent Mobile: {task.parentMobile}</p>
+                        <p className="flex items-center gap-2"><MapPin size={14} /> City: {task.taskCity}</p>
+                        <p className="flex items-center gap-2"><User size={14} /> User: {task.userName || "N/A"}</p>
+                      </div>
+
+                      <p className="mt-2 text-sm text-gray-500">{task.parentCurrentLocation}</p>
+                    </div>
+
+                    <div className="flex gap-2 md:flex-col md:min-w-[180px]">
+                      {activeTab === "available" ? (
+                        <>
+                          <button
+                            onClick={() => handleAccept(taskId)}
+                            className="flex-1 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600"
+                          >
+                            Accept
                           </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                          <button
+                            onClick={() => handleReject(taskId)}
+                            className="flex-1 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-600"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      ) : null}
 
-                  <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex items-start gap-3">
-                    <AlertCircle className="text-amber-500 mt-0.5 shrink-0" size={20} />
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-900 mb-1">Special Instructions</h4>
-                      <p className="text-sm text-gray-700 leading-relaxed">{currentTask.instructions}</p>
+                      {activeTab === "assigned" ? (
+                        <button
+                          onClick={() => handleComplete(taskId)}
+                          className="flex-1 rounded-xl bg-gradient-to-r from-[#6A2AFF] to-[#D116A8] px-4 py-2.5 text-sm font-semibold text-white"
+                        >
+                          Mark Completed
+                        </button>
+                      ) : null}
+
+                      {activeTab === "completed" ? (
+                        <span className="inline-flex items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
+                          <CheckCircle2 size={14} /> Done
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
-
-                {/* Right Column: Elderly Information & Actions */}
-                <div className="flex flex-col justify-between border-l border-gray-100 pl-0 lg:pl-10">
-                  <div className="flex flex-col gap-6">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">Assigned Elderly Details</p>
-                      <div className="flex items-center gap-4 mb-6">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#6A2AFF] to-[#D116A8] flex items-center justify-center text-white text-xl font-bold border-2 border-white shadow-md">
-                          {currentTask.elderly.name.charAt(0)}
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-gray-900">{currentTask.elderly.name}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full border border-gray-200">
-                              Age: {currentTask.elderly.age}
-                            </span>
-                            <span className="text-xs font-semibold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
-                              <HeartPulse size={10} /> {currentTask.elderly.bloodGroup}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Phone size={14} className="text-gray-500" />
-                            <span className="text-sm font-semibold text-gray-800">{currentTask.elderly.phone}</span>
-                          </div>
-                          <button className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 hover:bg-emerald-100 transition-colors">Call</button>
-                        </div>
-                        <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Phone size={14} className="text-gray-500" />
-                            <div className="flex flex-col">
-                              <span className="text-xs text-gray-500">Emergency</span>
-                              <span className="text-sm font-semibold text-gray-800">{currentTask.elderly.emergencyContact}</span>
-                            </div>
-                          </div>
-                          <button className="text-xs font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200 hover:bg-rose-100 transition-colors">Call Alert</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Main Actions block */}
-                  <div className="pt-8 flex flex-col gap-3 mt-8 lg:mt-0">
-                    <button className="w-full bg-gradient-to-r from-[#6A2AFF] to-[#D116A8] text-white py-3.5 rounded-xl text-sm font-bold shadow-md hover:shadow-xl hover:opacity-95 transition-all flex items-center justify-center gap-2">
-                      <CheckCircle2 size={18} /> Mark Task as Completed
-                    </button>
-                    <button className="w-full bg-white border border-gray-200 text-gray-600 py-3.5 rounded-xl text-sm font-semibold hover:border-[#6A2AFF] hover:text-[#6A2AFF] transition-all">
-                      Report an Issue / Reschedule
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* LIST VIEW FOR COMPLETED & CANCELLED */}
-          {activeTab !== "current" && (
-            <div className="flex flex-col gap-4">
-              {filteredListTasks.length > 0 ? (
-                filteredListTasks.map((task) => (
-                  <div 
-                    key={task.id} 
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 md:p-5 hover:shadow-md transition-shadow group flex flex-col md:flex-row md:items-center justify-between gap-6"
-                  >
-                    <div className="flex items-start gap-4 flex-1">
-                      {/* Icon Block */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm
-                        ${task.status === "completed" ? "bg-emerald-50 border border-emerald-100 text-emerald-500" : "bg-rose-50 border border-rose-100 text-rose-500"}`}
-                      >
-                        {task.status === "completed" ? <CheckCircle2 size={22} /> : <XCircle size={22} />}
-                      </div>
-                      
-                      {/* Task Details */}
-                      <div className="flex flex-col gap-1 w-full">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base font-bold text-gray-900">{task.name}</h3>
-                          <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full
-                            ${task.status === "completed" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
-                            {task.status}
-                          </span>
-                          <span className="text-[10px] font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full border border-gray-200">
-                            {task.type}
-                          </span>
-                        </div>
-
-                        <div className="mt-2 flex items-center gap-4 text-xs font-medium text-gray-500 flex-wrap">
-                          <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-400" /> {task.date}</span>
-                          <span className="flex items-center gap-1.5"><Clock size={14} className="text-gray-400" /> {task.time}</span>
-                        </div>
-                        
-                        <div className="mt-1 flex items-center gap-4 text-xs font-semibold text-gray-600 flex-wrap">
-                          <span className="flex items-center gap-1.5 text-gray-500"><MapPin size={14} className="text-gray-400" /> {task.location}</span>
-                          <span className="flex items-center gap-1.5 ml-0 sm:ml-2"><User size={14} className="text-gray-400" /> For: <span className="text-gray-800">{task.assignee}</span></span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-gray-100">
-                      <button className="w-full md:w-auto flex items-center justify-center gap-2 bg-gray-50 border border-gray-200 text-gray-600 hover:text-[#6A2AFF] hover:bg-purple-50 hover:border-purple-200 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all">
-                        <FileText size={16} /> Summary 
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-                  <ClipboardList size={48} className="text-gray-300 mb-4" />
-                  <h3 className="text-lg font-bold text-gray-800 mb-1">No tasks found</h3>
-                  <p className="text-sm text-gray-500">You don't have any {activeTab} tasks matching your search.</p>
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
+              );
+            })}
+          </div>
+        )}
       </main>
     </div>
   );

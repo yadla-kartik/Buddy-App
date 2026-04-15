@@ -1,12 +1,33 @@
 const Buddy = require("../models/Buddy");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const getCookieOptions = require("../utils/cookieOptions");
+const { ADMIN_ROOM } = require("../socket");
 
 const signBuddyToken = (buddy) =>
   jwt.sign({ id: buddy._id, role: buddy.role }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
+
+const buildBuddyPayload = (buddy) => ({
+  id: buddy._id,
+  name: buddy.name,
+  email: buddy.email,
+  mobile: buddy.mobile,
+  role: buddy.role,
+  isVerified: buddy.isVerified,
+  registrationCompleted: buddy.registrationCompleted,
+  verificationRequested: buddy.verificationRequested,
+  verificationStatus:
+    buddy.verificationStatus ||
+    (buddy.isVerified
+      ? "approved"
+      : buddy.verificationRequested
+      ? "pending"
+      : "not_submitted"),
+  verificationRequestedAt: buddy.verificationRequestedAt,
+  verificationReviewedAt: buddy.verificationReviewedAt,
+  verificationRejectionReason: buddy.verificationRejectionReason,
+});
 
 // Signup creates only basic account. No verification request is sent here.
 exports.signupBuddy = async (req, res) => {
@@ -38,6 +59,7 @@ exports.signupBuddy = async (req, res) => {
       registrationCompleted: false,
       verificationRequested: false,
       isVerified: false,
+      verificationStatus: "not_submitted",
     });
 
     const token = signBuddyToken(newBuddy);
@@ -50,15 +72,7 @@ exports.signupBuddy = async (req, res) => {
 
     return res.status(201).json({
       message: "Buddy signup successful",
-      buddy: {
-        id: newBuddy._id,
-        name: newBuddy.name,
-        email: newBuddy.email,
-        role: newBuddy.role,
-        isVerified: newBuddy.isVerified,
-        registrationCompleted: newBuddy.registrationCompleted,
-        verificationRequested: newBuddy.verificationRequested,
-      },
+      buddy: buildBuddyPayload(newBuddy),
     });
   } catch (err) {
     return res.status(500).json({
@@ -163,21 +177,25 @@ exports.registerBuddy = async (req, res) => {
     buddy.registrationCompleted = true;
     buddy.verificationRequested = true;
     buddy.verificationRequestedAt = new Date();
+    buddy.verificationReviewedAt = null;
+    buddy.verificationRejectionReason = "";
+    buddy.verificationStatus = "pending";
     buddy.isVerified = false;
 
     await buddy.save();
 
+    const io = req.app.get("io");
+    if (io) {
+      io.to(ADMIN_ROOM).emit("buddy:registration:submitted", {
+        type: "registration_submitted",
+        message: `${buddy.name} submitted registration for verification`,
+        buddy: buildBuddyPayload(buddy),
+      });
+    }
+
     return res.status(200).json({
       message: "Buddy registration submitted for verification",
-      buddy: {
-        id: buddy._id,
-        name: buddy.name,
-        email: buddy.email,
-        role: buddy.role,
-        isVerified: buddy.isVerified,
-        registrationCompleted: buddy.registrationCompleted,
-        verificationRequested: buddy.verificationRequested,
-      },
+      buddy: buildBuddyPayload(buddy),
     });
   } catch (err) {
     return res.status(500).json({
@@ -211,15 +229,7 @@ exports.loginBuddy = async (req, res) => {
 
     return res.status(200).json({
       message: "Login successful",
-      buddy: {
-        id: buddy._id,
-        name: buddy.name,
-        email: buddy.email,
-        role: buddy.role,
-        isVerified: buddy.isVerified,
-        registrationCompleted: buddy.registrationCompleted,
-        verificationRequested: buddy.verificationRequested,
-      },
+      buddy: buildBuddyPayload(buddy),
     });
   } catch (err) {
     return res.status(500).json({ message: "Login failed", error: err.message });
@@ -257,6 +267,15 @@ exports.getBuddyStatus = async (req, res) => {
         registrationCompleted: buddy.registrationCompleted,
         verificationRequested: buddy.verificationRequested,
         verificationRequestedAt: buddy.verificationRequestedAt,
+        verificationStatus:
+          buddy.verificationStatus ||
+          (buddy.isVerified
+            ? "approved"
+            : buddy.verificationRequested
+            ? "pending"
+            : "not_submitted"),
+        verificationReviewedAt: buddy.verificationReviewedAt,
+        verificationRejectionReason: buddy.verificationRejectionReason,
         panImage: buddy.panImage,
         aadhaarImage: buddy.aadhaarImage,
         profilePhoto: buddy.profilePhoto,

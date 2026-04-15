@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const Admin = require("../models/Admin");
+const ADMIN_EMAIL = "admin@gmail.com";
 
 const adminProtect = async (req, res, next) => {
   try {
@@ -11,13 +11,16 @@ const adminProtect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const admin = await Admin.findById(decoded.id).select("-password");
-
-    if (!admin) {
-      return res.status(401).json({ message: "Admin not found" });
+    if (decoded?.email !== ADMIN_EMAIL || decoded?.role !== "admin") {
+      return res.status(401).json({ message: "Admin not authorized" });
     }
 
-    req.admin = admin;
+    req.admin = {
+      id: decoded.id || "admin-static",
+      name: decoded.name || "Admin",
+      email: ADMIN_EMAIL,
+      role: "admin",
+    };
     next();
   } catch (err) {
     return res.status(401).json({ message: "Token invalid" });

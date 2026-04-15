@@ -9,6 +9,10 @@ const STEPS = [
   { number: 3, label: "Bank Details", icon: <CreditCard size={14} /> },
 ];
 
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const FILE_SIZE_ERROR = `File size is too large. Please upload within ${MAX_FILE_SIZE_MB} MB.`;
+
 const BuddyRegister = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -27,6 +31,11 @@ const BuddyRegister = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  const getFileSizeError = (file) => {
+    if (!file) return "";
+    return file.size > MAX_FILE_SIZE_BYTES ? FILE_SIZE_ERROR : "";
+  };
 
   // Prefill signup/login details in register form
   useEffect(() => {
@@ -111,7 +120,23 @@ const BuddyRegister = () => {
   };
 
   const handleFileChange = (e) => {
-    setFiles({ ...files, [e.target.name]: e.target.files[0] });
+    const { name, files: selectedFiles } = e.target;
+    const file = selectedFiles?.[0] || null;
+
+    setFiles((prev) => ({ ...prev, [name]: file }));
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      const sizeError = getFileSizeError(file);
+
+      if (sizeError) {
+        next[name] = sizeError;
+      } else {
+        delete next[name];
+      }
+
+      return next;
+    });
   };
 
   const validateStep = (s) => {
@@ -133,15 +158,21 @@ const BuddyRegister = () => {
         if (age < 18) e.dob = "You must be at least 18 years old";
       }
       if (!formData.permanentAddress.trim()) e.permanentAddress = "Address is required";
-      if (!files.profilePhoto) e.profilePhoto = "Profile photo is required";
+      const profilePhotoError = !files.profilePhoto
+        ? "Profile photo is required"
+        : getFileSizeError(files.profilePhoto);
+      if (profilePhotoError) e.profilePhoto = profilePhotoError;
     }
     if (s === 2) {
       if (formData.panNumber.length !== 10) e.panNumber = "PAN must be exactly 10 characters";
       if (formData.aadhaarNumber.length !== 12) e.aadhaarNumber = "Aadhaar must be exactly 12 digits";
       if (!formData.drivingLicenseNumber.trim()) e.drivingLicenseNumber = "Driving licence number is required";
-      if (!files.panImage) e.panImage = "PAN card image is required";
-      if (!files.aadhaarImage) e.aadhaarImage = "Aadhaar card image is required";
-      if (!files.drivingLicenseImage) e.drivingLicenseImage = "Driving licence image is required";
+      const panImageError = !files.panImage ? "PAN card image is required" : getFileSizeError(files.panImage);
+      const aadhaarImageError = !files.aadhaarImage ? "Aadhaar card image is required" : getFileSizeError(files.aadhaarImage);
+      const drivingLicenseImageError = !files.drivingLicenseImage ? "Driving licence image is required" : getFileSizeError(files.drivingLicenseImage);
+      if (panImageError) e.panImage = panImageError;
+      if (aadhaarImageError) e.aadhaarImage = aadhaarImageError;
+      if (drivingLicenseImageError) e.drivingLicenseImage = drivingLicenseImageError;
     }
     if (s === 3) {
       if (!formData.bankName.trim()) e.bankName = "Bank name is required";
@@ -173,6 +204,26 @@ const BuddyRegister = () => {
     const res = await registerBuddy(data);
     setIsSubmitting(false);
 
+    if (res?.field) {
+      const stepByField = {
+        profilePhoto: 1,
+        panImage: 2,
+        aadhaarImage: 2,
+        drivingLicenseImage: 2,
+      };
+
+      setErrors((prev) => ({
+        ...prev,
+        [res.field]: res.message || FILE_SIZE_ERROR,
+      }));
+
+      if (stepByField[res.field]) {
+        setStep(stepByField[res.field]);
+      }
+
+      return;
+    }
+
     if (res?.message === "Buddy registration submitted for verification") {
       localStorage.setItem("buddyData", JSON.stringify(res.buddy));
       navigate("/buddy/dashboard");
@@ -192,8 +243,17 @@ const BuddyRegister = () => {
 
   const FileUpload = ({ name, label, required }) => (
     <div>
-      <label className={labelCls}>{label} {required && <span className="text-red-400">*</span>}</label>
-      <input type="file" name={name} onChange={handleFileChange} className="hidden" id={name} accept="image/*,.pdf" />
+      <label className={labelCls}>
+        {label} {required && <span className="text-red-400">*</span>}
+      </label>
+      <input
+        type="file"
+        name={name}
+        onChange={handleFileChange}
+        className="hidden"
+        id={name}
+        accept="image/*"
+      />
       <label
         htmlFor={name}
         className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-gray-50 border cursor-pointer transition-all text-sm text-gray-500 ${errors[name] ? "border-red-400" : "border-gray-200 hover:border-[#8755F9] hover:bg-purple-50"
@@ -202,6 +262,7 @@ const BuddyRegister = () => {
         <Upload size={15} className="text-gray-400" />
         <span className="truncate">{files[name] ? files[name].name : `Choose ${label}`}</span>
       </label>
+      <p className="mt-1 text-[11px] text-gray-400">Max {MAX_FILE_SIZE_MB} MB</p>
       {errors[name] && <p className={errorCls}>{errors[name]}</p>}
     </div>
   );

@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getBuddyStatus } from "../../services/buddyAuthService";
+import { connectBuddySocket, disconnectBuddySocket } from "../../services/socketService";
 import BuddyNav from "./BuddyNav";
 import UnregisteredBanner from "./UnregisteredBanner";
 import PendingBanner from "./PendingBanner";
+import RejectedBanner from "./RejectedBanner";
 import VerifiedDashboard from "./VerifiedDashboard";
 
 export default function BuddyDashboard() {
   const navigate = useNavigate();
   const [buddy, setBuddy] = useState(null);
   const [loading, setLoading] = useState(true);
-  const unreadCount = buddy?.isVerified ? 2 : 0;
+  const [liveNotice, setLiveNotice] = useState("");
+  const unreadCount = liveNotice ? 1 : 0;
 
-  // ✅ Token check: verify with backend on every load/reload
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -21,12 +23,10 @@ export default function BuddyDashboard() {
           setBuddy(res.buddy);
           localStorage.setItem("buddyData", JSON.stringify(res.buddy));
         } else {
-          // No valid token → redirect to login
           localStorage.removeItem("buddyData");
           navigate("/buddy/login");
         }
-      } catch (err) {
-        // Token deleted/expired/invalid → redirect to login
+      } catch {
         localStorage.removeItem("buddyData");
         navigate("/buddy/login");
       } finally {
@@ -37,10 +37,46 @@ export default function BuddyDashboard() {
     checkAuth();
   }, [navigate]);
 
+  useEffect(() => {
+    if (!buddy?.id) return undefined;
+
+    const socket = connectBuddySocket(buddy.id);
+
+    const onVerificationUpdated = (payload) => {
+      const updatedBuddy = payload?.buddy;
+      if (!updatedBuddy) return;
+
+      const updatedId = String(updatedBuddy.id || updatedBuddy._id || "");
+      if (!updatedId || updatedId !== String(buddy.id)) return;
+
+      setBuddy((prev) => {
+        const next = {
+          ...prev,
+          ...updatedBuddy,
+          id: updatedBuddy.id || updatedBuddy._id || prev?.id,
+        };
+        localStorage.setItem("buddyData", JSON.stringify(next));
+        return next;
+      });
+
+      setLiveNotice(payload?.message || "Verification status updated");
+    };
+
+    socket.on("buddy:verification:updated", onVerificationUpdated);
+
+    return () => {
+      socket.off("buddy:verification:updated", onVerificationUpdated);
+      disconnectBuddySocket();
+    };
+  }, [buddy?.id]);
+
   const detectState = (b) => {
     if (!b) return "unregistered";
-    if (b.isVerified) return "welcome";
-    if (b.registrationCompleted) return "pending";
+
+    if (b.verificationStatus === "rejected") return "rejected";
+    if (b.verificationStatus === "approved" || b.isVerified) return "welcome";
+    if (b.verificationStatus === "pending" || b.registrationCompleted) return "pending";
+
     return "unregistered";
   };
 
@@ -48,7 +84,9 @@ export default function BuddyDashboard() {
     try {
       const { logoutBuddyApi } = await import("../../services/buddyAuthService");
       await logoutBuddyApi();
-    } catch (e) {}
+    } catch {
+      // ignore logout errors and continue cleanup
+    }
     localStorage.removeItem("buddyData");
     navigate("/buddy/login");
   };
@@ -68,9 +106,21 @@ export default function BuddyDashboard() {
       <BuddyNav buddy={buddy} status={state} unreadCount={unreadCount} />
 
       <div className="flex-1 flex flex-col min-w-0">
+        {liveNotice ? (
+          <div className="mx-8 mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
+            {liveNotice}
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-6 py-6">
           {state === "unregistered" && <UnregisteredBanner />}
           {state === "pending" && <PendingBanner />}
+          {state === "rejected" && (
+            <RejectedBanner
+              reason={buddy?.verificationRejectionReason}
+              onRetry={() => navigate("/buddy/register")}
+            />
+          )}
         </div>
 
         {state === "welcome" && (

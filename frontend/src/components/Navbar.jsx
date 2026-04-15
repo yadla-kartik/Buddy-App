@@ -23,7 +23,7 @@ const navLinks = [
   { label: "Help",      path: "/help"      },
 ];
 
-const Navbar = ({ user }) => {
+const Navbar = ({ user, notificationCount = 0, onNotificationClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const today = new Date().toLocaleDateString("en-IN", {
@@ -74,9 +74,18 @@ const Navbar = ({ user }) => {
         </div>
 
         {/* Bell */}
-        <button className="relative p-2 rounded-xl hover:bg-gray-50 transition">
+        <button
+          onClick={onNotificationClick}
+          className="relative p-2 rounded-xl hover:bg-gray-50 transition"
+        >
           <FaBell className="text-gray-400" size={15} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+          {notificationCount > 0 ? (
+            <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+              {notificationCount > 9 ? "9+" : notificationCount}
+            </span>
+          ) : (
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-gray-300 rounded-full" />
+          )}
         </button>
 
     {/* Avatar */}

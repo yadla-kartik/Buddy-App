@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAdminMe, logoutAdminApi } from "../../services/adminAuthService";
 import { FaUsers, FaUserCheck, FaSignOutAlt, FaSearch, FaBell, FaFilter, FaBriefcase, FaTasks } from "react-icons/fa";
-import { X, ChevronLeft, ChevronRight, Mail, Phone, MapPin, CheckCircle, LayoutDashboard, Clock, Activity, TrendingUp, MoreVertical, Calendar } from "lucide-react";
-import { getAllBuddies, getBuddyById, verifyBuddy } from "../../services/adminBuddyService";
+import { X, ChevronLeft, ChevronRight, Mail, Phone, MapPin, CheckCircle, LayoutDashboard, Clock, Activity, TrendingUp, MoreVertical, Calendar, AlertTriangle } from "lucide-react";
+import { getAllBuddies, getBuddyById, verifyBuddy, rejectBuddy } from "../../services/adminBuddyService";
+import { connectAdminSocket, disconnectAdminSocket } from "../../services/socketService";
 
 // --- DUMMY DATA ---
 const dummyUsers = [
@@ -19,6 +20,38 @@ const dummyInterviews = [
   { id: 3, candidate: "Emily Clark", role: "UI/UX Buddy", date: "Apr 13, 11:30 AM", status: "Pending", interviewer: "Unassigned" },
 ];
 
+const getBuddyId = (buddy) => buddy?._id || buddy?.id;
+
+const getVerificationStatus = (buddy) => {
+  if (!buddy) return "pending";
+  if (buddy.verificationStatus) return buddy.verificationStatus;
+  return buddy.isVerified ? "approved" : "pending";
+};
+
+const getStatusMeta = (status) => {
+  if (status === "approved") {
+    return {
+      label: "Verified",
+      className: "bg-emerald-100 text-emerald-700",
+      icon: <CheckCircle size={12} />,
+    };
+  }
+
+  if (status === "rejected") {
+    return {
+      label: "Rejected",
+      className: "bg-red-100 text-red-700",
+      icon: <AlertTriangle size={12} />,
+    };
+  }
+
+  return {
+    label: "Pending",
+    className: "bg-amber-100 text-amber-700",
+    icon: <Clock size={12} />,
+  };
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [admin, setAdmin] = useState(null);
@@ -29,6 +62,7 @@ const AdminDashboard = () => {
   const [selectedBuddy, setSelectedBuddy] = useState(null);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [liveNotice, setLiveNotice] = useState("");
 
   const perPage = 5;
 
@@ -42,19 +76,61 @@ const AdminDashboard = () => {
   const start = (page - 1) * perPage;
   const visibleBuddies = filteredBuddies.slice(start, start + perPage);
 
+  const pendingCount = buddies.filter(
+    (buddy) => getVerificationStatus(buddy) === "pending"
+  ).length;
+  const verifiedCount = buddies.filter(
+    (buddy) => getVerificationStatus(buddy) === "approved"
+  ).length;
+
   const statsCards = [
-    { label: "Total Buddies", value: "156", icon: <FaUserCheck size={20} />, color: "from-indigo-500 to-blue-600", trend: "+12%" },
-    { label: "Pending verifications", value: "24", icon: <Clock size={20} />, color: "from-orange-400 to-amber-500", trend: "-5%" },
-    { label: "Verified Buddies", value: "132", icon: <CheckCircle size={20} />, color: "from-emerald-400 to-green-600", trend: "+18%" },
+    { label: "Total Buddies", value: String(buddies.length), icon: <FaUserCheck size={20} />, color: "from-indigo-500 to-blue-600", trend: "+12%" },
+    { label: "Pending verifications", value: String(pendingCount), icon: <Clock size={20} />, color: "from-orange-400 to-amber-500", trend: "-5%" },
+    { label: "Verified Buddies", value: String(verifiedCount), icon: <CheckCircle size={20} />, color: "from-emerald-400 to-green-600", trend: "+18%" },
     { label: "Scheduled Interviews", value: "8", icon: <Calendar size={20} />, color: "from-purple-500 to-pink-600", trend: "+2%" },
   ];
+
+  const pushLiveNotice = useCallback((message) => {
+    if (!message) return;
+    setLiveNotice(message);
+    setTimeout(() => {
+      setLiveNotice((prev) => (prev === message ? "" : prev));
+    }, 4000);
+  }, []);
+
+  const upsertBuddy = useCallback((incomingBuddy) => {
+    if (!incomingBuddy) return;
+
+    const incomingId = String(getBuddyId(incomingBuddy) || "");
+    if (!incomingId) return;
+
+    setBuddies((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) => String(getBuddyId(item) || "") === incomingId
+      );
+
+      if (existingIndex === -1) {
+        return [{ ...incomingBuddy, _id: incomingId }, ...prev];
+      }
+
+      const next = [...prev];
+      next[existingIndex] = {
+        ...next[existingIndex],
+        ...incomingBuddy,
+        _id: incomingId,
+      };
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const fetchBuddies = async () => {
       try {
         const data = await getAllBuddies();
         if (data) setBuddies(data);
-      } catch (e) { }
+      } catch (error) {
+        console.error("Failed to load buddies:", error);
+      }
     };
     fetchBuddies();
   }, []);
@@ -65,12 +141,44 @@ const AdminDashboard = () => {
         const res = await getAdminMe();
         if (res) setAdmin(res);
         else navigate("/admin/login");
-      } catch (e) {
+      } catch (error) {
+        console.error("Failed to load admin:", error);
         navigate("/admin/login");
       }
     };
     fetchAdmin();
-  }, []);
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!admin) return undefined;
+
+    const socket = connectAdminSocket();
+
+    const onRegistrationSubmitted = (payload) => {
+      const incomingBuddy = payload?.buddy;
+      if (incomingBuddy) {
+        upsertBuddy(incomingBuddy);
+      }
+      pushLiveNotice(payload?.message || "New buddy registration submitted");
+    };
+
+    const onVerificationUpdated = (payload) => {
+      const incomingBuddy = payload?.buddy;
+      if (incomingBuddy) {
+        upsertBuddy(incomingBuddy);
+      }
+      pushLiveNotice(payload?.message || "Buddy verification status updated");
+    };
+
+    socket.on("buddy:registration:submitted", onRegistrationSubmitted);
+    socket.on("buddy:verification:updated", onVerificationUpdated);
+
+    return () => {
+      socket.off("buddy:registration:submitted", onRegistrationSubmitted);
+      socket.off("buddy:verification:updated", onVerificationUpdated);
+      disconnectAdminSocket();
+    };
+  }, [admin, pushLiveNotice, upsertBuddy]);
 
   // SUBCOMPONENTS //
   const OverviewView = () => (
@@ -102,7 +210,7 @@ const AdminDashboard = () => {
           </div>
           <div className="space-y-4">
             {buddies.slice(0, 4).map(buddy => (
-              <div key={buddy._id || Math.random()} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition">
+              <div key={getBuddyId(buddy) || buddy.email} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
                     {buddy.name?.charAt(0) || "U"}
@@ -112,9 +220,15 @@ const AdminDashboard = () => {
                     <p className="text-xs text-gray-500">{buddy.email || "No email"}</p>
                   </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${buddy.isVerified ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                  {buddy.isVerified ? "Verified" : "Pending"}
-                </span>
+                {(() => {
+                  const statusMeta = getStatusMeta(getVerificationStatus(buddy));
+                  return (
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${statusMeta.className}`}>
+                      {statusMeta.icon}
+                      {statusMeta.label}
+                    </span>
+                  );
+                })()}
               </div>
             ))}
             {buddies.length === 0 && <p className="text-gray-500 text-sm">No applications found.</p>}
@@ -174,7 +288,7 @@ const AdminDashboard = () => {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {visibleBuddies.map((buddy, idx) => (
-                <tr key={buddy._id || idx} className="hover:bg-indigo-50/50 transition-colors group">
+                <tr key={getBuddyId(buddy) || idx} className="hover:bg-indigo-50/50 transition-colors group">
                   <td className="p-5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold shadow-sm">
@@ -187,10 +301,15 @@ const AdminDashboard = () => {
                     </div>
                   </td>
                   <td className="p-5">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${buddy.isVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                      {buddy.isVerified ? <CheckCircle size={12} /> : <Clock size={12} />}
-                      {buddy.isVerified ? "Verified" : "Pending"}
-                    </span>
+                    {(() => {
+                      const statusMeta = getStatusMeta(getVerificationStatus(buddy));
+                      return (
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${statusMeta.className}`}>
+                          {statusMeta.icon}
+                          {statusMeta.label}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="p-5 text-sm text-gray-600">
                     {buddy.createdAt ? new Date(buddy.createdAt).toLocaleDateString() : "2 days ago"}
@@ -198,10 +317,16 @@ const AdminDashboard = () => {
                   <td className="p-5 text-right">
                     <button
                       onClick={async () => {
+                        const buddyId = getBuddyId(buddy);
+                        if (!buddyId) {
+                          setSelectedBuddy(buddy);
+                          return;
+                        }
                         try {
-                          const fullBuddy = await getBuddyById(buddy._id);
+                          const fullBuddy = await getBuddyById(buddyId);
                           setSelectedBuddy(fullBuddy || buddy); // fallback if fullbuddy fails
-                        } catch (e) {
+                        } catch (error) {
+                          console.error("Failed to load full buddy details:", error);
                           setSelectedBuddy(buddy);
                         }
                       }}
@@ -318,7 +443,7 @@ const AdminDashboard = () => {
         </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {dummyInterviews.map((item, i) => (
+        {dummyInterviews.map((item) => (
           <div key={item.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition">
             <div className={`absolute top-0 left-0 w-1.5 h-full ${item.status === 'Scheduled' ? 'bg-blue-500' : item.status === 'Completed' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
             <div className="flex justify-between items-start mb-4 pl-2">
@@ -475,7 +600,7 @@ const AdminDashboard = () => {
 
             <button className="relative p-2.5 text-gray-400 hover:text-gray-700 transition bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 rounded-full">
               <FaBell size={18} />
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${liveNotice ? "bg-red-500" : "bg-gray-300"}`}></span>
             </button>
 
             <div className="w-px h-8 bg-gray-200"></div>
@@ -491,6 +616,12 @@ const AdminDashboard = () => {
             </div>
           </div>
         </header>
+
+        {liveNotice ? (
+          <div className="mx-8 mt-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+            {liveNotice}
+          </div>
+        ) : null}
 
         {/* Dynamic View */}
         <div className="p-8 max-w-7xl mx-auto w-full flex-1">
@@ -600,15 +731,43 @@ const AdminDashboard = () => {
               </button>
               <button
                 onClick={async () => {
+                  const buddyId = getBuddyId(selectedBuddy);
+                  if (!buddyId) return;
+
+                  const reason = window.prompt("Reason for rejection (optional):", "");
+                  if (reason === null) return;
+
                   try {
-                    const res = await verifyBuddy(selectedBuddy._id);
+                    const res = await rejectBuddy(buddyId, reason);
+                    if (res?.buddy) {
+                      upsertBuddy(res.buddy);
+                    }
+                    pushLiveNotice(res?.message || `${selectedBuddy.name} rejected`);
+                    setSelectedBuddy(null);
+                  } catch (error) {
+                    console.error("Failed to reject buddy:", error);
+                  }
+                }}
+                className="px-6 py-3.5 bg-red-500 text-white rounded-xl font-bold shadow-md shadow-red-500/30 hover:bg-red-600 hover:shadow-lg transition flex-1 flex justify-center items-center gap-2"
+              >
+                <AlertTriangle size={18} /> Reject Applicant
+              </button>
+              <button
+                onClick={async () => {
+                  const buddyId = getBuddyId(selectedBuddy);
+                  if (!buddyId) return;
+                  try {
+                    const res = await verifyBuddy(buddyId);
                     if (res) {
-                      alert(`Buddy ${selectedBuddy.name} verified successfully.`);
-                      const updatedBuddies = await getAllBuddies();
-                      setBuddies(updatedBuddies);
+                      if (res?.buddy) {
+                        upsertBuddy(res.buddy);
+                      }
+                      pushLiveNotice(res?.message || `${selectedBuddy.name} verified`);
                       setSelectedBuddy(null);
                     }
-                  } catch (e) { }
+                  } catch (error) {
+                    console.error("Failed to verify buddy:", error);
+                  }
                 }}
                 className="px-6 py-3.5 bg-emerald-500 text-white rounded-xl font-bold shadow-md shadow-emerald-500/30 hover:bg-emerald-600 hover:shadow-lg transition flex-1 flex justify-center items-center gap-2"
               >

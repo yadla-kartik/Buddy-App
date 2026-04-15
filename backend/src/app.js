@@ -9,6 +9,7 @@ const taskRoutes = require("./routes/taskRoutes");
 const adminAuthRoutes = require("./routes/adminAuthRoutes");
 
 const app = express();
+const MAX_FILE_SIZE_MB = 5;
 
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS || "http://localhost:5173"
@@ -16,6 +17,8 @@ const allowedOrigins = (
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+app.set("allowedOrigins", allowedOrigins);
 
 app.use(
   cors({
@@ -43,6 +46,29 @@ app.use("/api/admin", adminAuthRoutes);
 app.use("/api/admin", require("./routes/adminBuddyRoutes"));
 
 app.use("/api/payment", require("./routes/paymentRoutes"));
+
+app.use((err, req, res, next) => {
+  if (err && err.name === "MulterError" && err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({
+      message: `File size is too large. Please upload within ${MAX_FILE_SIZE_MB} MB.`,
+      field: err.field || null,
+      maxSizeMB: MAX_FILE_SIZE_MB,
+    });
+  }
+
+  if (err && err.message === "Only image files are allowed!") {
+    return res.status(400).json({
+      message: err.message,
+      field: err.field || null,
+    });
+  }
+
+  if (err) {
+    return res.status(500).json({ message: err.message || "Server error" });
+  }
+
+  return next();
+});
 
 
 

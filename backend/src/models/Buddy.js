@@ -27,6 +27,13 @@ const buddySchema = new mongoose.Schema({
   registrationCompleted: { type: Boolean, default: false },
   verificationRequested: { type: Boolean, default: false },
   verificationRequestedAt: Date,
+  verificationStatus: {
+    type: String,
+    enum: ["not_submitted", "pending", "approved", "rejected"],
+    default: "not_submitted",
+  },
+  verificationReviewedAt: Date,
+  verificationRejectionReason: String,
   role: { type: String, default: "buddy" }
 }, { timestamps: true });
 

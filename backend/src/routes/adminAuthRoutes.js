@@ -1,6 +1,5 @@
 const express = require("express");
 const {
-  adminRegister,
   adminLogin,
   getAdminMe,
   adminLogout,
@@ -10,7 +9,6 @@ const adminProtect = require("../middleware/adminAuthMiddleware");
 
 const router = express.Router();
 
-router.post("/register", adminRegister);
 router.post("/login", adminLogin);
 
 // Protected routes

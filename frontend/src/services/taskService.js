@@ -1,6 +1,5 @@
 import api from "./api";
 
-// ✅ User creates task
 export const createTask = async (data) => {
   try {
     const res = await api.post("/tasks/create", data, {
@@ -8,11 +7,10 @@ export const createTask = async (data) => {
     });
     return res.data;
   } catch (err) {
-    return err.response?.data;
+    return err.response?.data || { message: "Failed to create task" };
   }
 };
 
-// ✅ Buddy gets all pending tasks
 export const getPendingTasks = async () => {
   try {
     const res = await api.get("/tasks/pending", {
@@ -21,16 +19,31 @@ export const getPendingTasks = async () => {
     return res.data;
   } catch (err) {
     console.error("Get Tasks Error:", err);
-    throw err;
+    return { tasks: [], message: "Failed to fetch pending tasks" };
   }
 };
 
-// ✅ Buddy accepts a task
-export const acceptTask = async (taskId) => {
+export const getBuddyTasks = async () => {
   try {
-    const res = await api.post(`/tasks/accept/${taskId}`, {}, {
+    const res = await api.get("/tasks/buddy/my", {
       withCredentials: true,
     });
+    return res.data;
+  } catch (err) {
+    console.error("Get Buddy Tasks Error:", err);
+    return { tasks: [], message: "Failed to fetch buddy tasks" };
+  }
+};
+
+export const acceptTask = async (taskId) => {
+  try {
+    const res = await api.post(
+      `/tasks/accept/${taskId}`,
+      {},
+      {
+        withCredentials: true,
+      }
+    );
     return res.data;
   } catch (err) {
     console.error("Accept Task Error:", err);
@@ -38,7 +51,38 @@ export const acceptTask = async (taskId) => {
   }
 };
 
-// ✅ User gets their own tasks
+export const rejectTask = async (taskId) => {
+  try {
+    const res = await api.post(
+      `/tasks/reject/${taskId}`,
+      {},
+      {
+        withCredentials: true,
+      }
+    );
+    return res.data;
+  } catch (err) {
+    console.error("Reject Task Error:", err);
+    return err.response?.data || { message: "Failed to reject task" };
+  }
+};
+
+export const completeTask = async (taskId) => {
+  try {
+    const res = await api.post(
+      `/tasks/complete/${taskId}`,
+      {},
+      {
+        withCredentials: true,
+      }
+    );
+    return res.data;
+  } catch (err) {
+    console.error("Complete Task Error:", err);
+    return err.response?.data || { message: "Failed to complete task" };
+  }
+};
+
 export const getUserTasks = async () => {
   try {
     const res = await api.get("/tasks/user", {
@@ -47,6 +91,6 @@ export const getUserTasks = async () => {
     return res.data;
   } catch (err) {
     console.error("Get User Tasks Error:", err);
-    throw err;
+    return { tasks: [], message: "Failed to fetch user tasks" };
   }
 };

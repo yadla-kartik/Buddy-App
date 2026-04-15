@@ -1,7 +1,7 @@
 import { FaBell } from "react-icons/fa";
 import buddyLogo from "../../assets/buddyLogo.png";
 import { useNavigate, useLocation } from "react-router-dom";
-import { BadgeCheck, Clock, Shield } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Clock, Shield } from "lucide-react";
 import api from "../../services/api";
 
 const getGreeting = () => {
@@ -45,6 +45,13 @@ function StatusBadge({ status }) {
     return (
       <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-semibold bg-amber-50 text-amber-600 border border-amber-200 px-2.5 py-1 rounded-full">
         <Clock size={10} /> Pending Approval
+      </span>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-full">
+        <AlertTriangle size={10} /> Rejected
       </span>
     );
   }

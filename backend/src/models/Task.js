@@ -25,6 +25,12 @@ const taskSchema = new mongoose.Schema(
       required: true,
     },
 
+    taskCity: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     // 📍 LOCATION TYPE
     taskLocationType: {
       type: String,
@@ -76,6 +82,13 @@ const taskSchema = new mongoose.Schema(
       ref: "Buddy",
       default: null,
     },
+
+    rejectedBuddies: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Buddy",
+      },
+    ],
 
     // 📊 STATUS
     status: {

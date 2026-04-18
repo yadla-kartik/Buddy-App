@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const getCookieOptions = require("../utils/cookieOptions");
 const { ADMIN_ROOM } = require("../socket");
+const { uploadImageBuffer } = require("../utils/cloudinaryUpload");
 
 const signBuddyToken = (buddy) =>
   jwt.sign({ id: buddy._id, role: buddy.role }, process.env.JWT_SECRET, {
@@ -166,10 +167,32 @@ exports.registerBuddy = async (req, res) => {
     buddy.vehicleType = vehicleType;
     buddy.vehicleNumber = vehicleNumber;
     buddy.drivingLicenseNumber = drivingLicenseNumber;
-    buddy.panImage = req.files.panImage[0].path;
-    buddy.aadhaarImage = req.files.aadhaarImage[0].path;
-    buddy.profilePhoto = req.files.profilePhoto[0].path;
-    buddy.drivingLicenseImage = req.files.drivingLicenseImage[0].path;
+    const cloudFolder = process.env.CLOUDINARY_FOLDER || "buddy/uploads";
+
+    const [panUpload, aadhaarUpload, profileUpload, dlUpload] =
+      await Promise.all([
+        uploadImageBuffer(req.files.panImage[0].buffer, {
+          folder: cloudFolder,
+          public_id: `pan_${buddy._id}_${Date.now()}`,
+        }),
+        uploadImageBuffer(req.files.aadhaarImage[0].buffer, {
+          folder: cloudFolder,
+          public_id: `aadhaar_${buddy._id}_${Date.now()}`,
+        }),
+        uploadImageBuffer(req.files.profilePhoto[0].buffer, {
+          folder: cloudFolder,
+          public_id: `profile_${buddy._id}_${Date.now()}`,
+        }),
+        uploadImageBuffer(req.files.drivingLicenseImage[0].buffer, {
+          folder: cloudFolder,
+          public_id: `dl_${buddy._id}_${Date.now()}`,
+        }),
+      ]);
+
+    buddy.panImage = panUpload.secure_url;
+    buddy.aadhaarImage = aadhaarUpload.secure_url;
+    buddy.profilePhoto = profileUpload.secure_url;
+    buddy.drivingLicenseImage = dlUpload.secure_url;
     buddy.registrationCompleted = true;
     buddy.verificationRequested = true;
     buddy.verificationRequestedAt = new Date();
